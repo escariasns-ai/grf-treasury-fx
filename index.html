@@ -692,6 +692,26 @@ tbody tr:hover{background:var(--surface2);}
   </div>
 </div>
 
+<!-- ══ EMAIL PREVIEW MODAL ══ -->
+<div class="modal-overlay" id="emailPreviewModal" onclick="closeEmailPreview(event)">
+  <div class="edit-modal" style="max-width:680px">
+    <div class="em-hdr" style="background:var(--accent)">
+      <div class="em-title" style="color:#fff">&#128231; Deal Email Preview</div>
+      <button class="modal-close" style="color:rgba(255,255,255,.7)" onclick="closeEmailPreviewModal()">&times;</button>
+    </div>
+    <div style="padding:0">
+      <div style="padding:10px 18px;background:var(--accent-bg);border-bottom:1px solid var(--accent-bd);font-size:12.5px;color:var(--text2)">
+        <b style="color:var(--accent)">Subject: </b><span id="prevEmailSubject"></span>
+      </div>
+      <div id="prevEmailBody" style="padding:18px 22px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.85;color:var(--text);white-space:pre-wrap;background:#fff;max-height:55vh;overflow-y:auto"></div>
+    </div>
+    <div class="em-footer">
+      <button class="em-save" onclick="copyPreviewEmail()" id="prevCopyBtn">&#8690; Copy to Clipboard</button>
+      <button class="em-cancel" onclick="closeEmailPreviewModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ HELP MODAL ══ -->
 <div class="modal-overlay" id="helpModal" onclick="closeHelpOutside(event)">
   <div class="modal">
@@ -1002,12 +1022,12 @@ function rebuildToggle(pair) {
   if (pair==='EURUSD') {
     types=['SELL_EUR','BUY_EUR','SELL_USD','BUY_USD'];
     classes=['se','be','su','bu'];
-    subs=['Give EUR \u00B7 Get USD','Give USD \u00B7 Get EUR','Give USD \u00B7 Get EUR','Give EUR \u00B7 Get USD'];
+    subs=['Enter EUR · Sell to Bank','Enter EUR · Buy from Bank','Enter EUR · Sell USD','Enter EUR · Buy USD'];
     labels=['&#9660; Sell EUR','&#9650; Buy EUR','&#9660; Sell USD','&#9650; Buy USD'];
   } else {
     types=['SELL_USD','BUY_USD','SELL_ZAR','BUY_ZAR'];
     classes=['se','be','su','bu'];
-    subs=['Give USD \u00B7 Get ZAR','Give ZAR \u00B7 Get USD','Give ZAR \u00B7 Get USD','Give USD \u00B7 Get ZAR'];
+    subs=['Enter USD · Sell to Bank','Enter USD · Buy from Bank','Enter USD · Sell ZAR','Enter USD · Buy ZAR'];
     labels=['&#9660; Sell USD','&#9650; Buy USD','&#9660; Sell ZAR','&#9650; Buy ZAR'];
   }
   for (var i=0;i<4;i++) {
@@ -1123,19 +1143,29 @@ function calculate() {
   var bankRate=parseFloat(bankRateRaw); var inputAmt=parseFloat(amountRaw);
   var spot=liveRate; var cfg=PAIR_CONFIG[currentPair]; var spread=cfg.spread;
   var pipMult=currentPair==='EURUSD'?10000:100;
-  var pips=Math.abs(bankRate-spot)*pipMult;
-  pv.textContent=pips.toFixed(2);
-  var isGivingCcy1=(dealType==='SELL_EUR'||dealType==='BUY_USD'||dealType==='SELL_USD'||dealType==='BUY_ZAR');
-  var amtCcy1,amtCcy2,giveLabel,getLabel,youGive,youGet;
-  if (isGivingCcy1){amtCcy1=inputAmt;amtCcy2=inputAmt*bankRate;giveLabel=cfg.ccy1+' Amount (You Give)';getLabel=cfg.ccy2+' Amount (You Receive)';youGive=fmtN(amtCcy1.toFixed(0))+' '+cfg.ccy1;youGet=fmtN(amtCcy2.toFixed(2))+' '+cfg.ccy2;}
-  else{amtCcy2=inputAmt;amtCcy1=inputAmt/bankRate;giveLabel=cfg.ccy2+' Amount (You Give)';getLabel=cfg.ccy1+' Amount (You Receive)';youGive=fmtN(amtCcy2.toFixed(2))+' '+cfg.ccy2;youGet=fmtN(amtCcy1.toFixed(0))+' '+cfg.ccy1;}
+  // All types: user enters CCY1 (EUR), CCY2 is calculated
+  var amtCcy1 = inputAmt;
+  var amtCcy2 = inputAmt * bankRate;
+  // Selling = compare to Bid; Buying = compare to Ask
+  var isSelling = (dealType==='SELL_EUR'||dealType==='SELL_USD'||dealType==='SELL_ZAR');
+  var refRate   = isSelling ? (spot - spread) : (spot + spread);
+  var refLabel  = isSelling ? 'Bid' : 'Ask';
+  var pips      = Math.abs(bankRate - refRate) * pipMult;
+  pv.textContent = pips.toFixed(2);
+  // Labels
+  var giveLabel, getLabel, youGive, youGet;
+  if (isSelling){giveLabel=cfg.ccy1+' Amount (Sell — vs Bid)';getLabel=cfg.ccy2+' Amount (You Receive)';}
+  else{giveLabel=cfg.ccy1+' Amount (Buy — vs Ask)';getLabel=cfg.ccy2+' Amount (You Pay)';}
+  youGive=fmtN(amtCcy1.toFixed(0))+' '+cfg.ccy1;
+  youGet=fmtN(amtCcy2.toFixed(2))+' '+cfg.ccy2;
+  // Verdict
   var cls,icon,title,desc;
   var dLbl=(PAIR_CONFIG[currentPair].dealLabels[dealType]||dealType);
-  if (pips<5){cls='stellar';icon='\u2B50';title='Impressive \u2014 Excellent Margin (< 5 Pips)';desc=dLbl+': Bank margin is only '+pips.toFixed(2)+' pips. Very competitive. Confirm with confidence.';}
-  else if (pips<=7){cls='ok';icon='\u2705';title='Satisfactory \u2014 Acceptable Margin (5\u20137 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips \u2014 within your 5\u20137 pip range. Fair rate. Safe to proceed.';}
-  else if (pips<=8){cls='caution';icon='\u26A0\uFE0F';title='Concerning \u2014 Above 7-Pip Policy Limit (7\u20138 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips \u2014 above your limit. Ask the bank to tighten the rate.';}
-  else if (pips<=9){cls='warn';icon='\u26D4';title='High Margin \u2014 Well Above Limit (8\u20139 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips. Negotiate firmly or try another bank.';}
-  else{cls='bad';icon='\u274C';title='Red Flag \u2014 Reject This Rate (> 9 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips. Unacceptable. Reject and request a new quote.';}
+  if (pips<5){cls='stellar';icon='⭐';title='Impressive — Excellent Margin (< 5 Pips)';desc=dLbl+': Bank margin vs '+refLabel+' is only '+pips.toFixed(2)+' pips. Very competitive.';}
+  else if (pips<=7){cls='ok';icon='✅';title='Satisfactory — Acceptable Margin (5–7 Pips)';desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips — within range. Safe to proceed.';}
+  else if (pips<=8){cls='caution';icon='⚠️';title='Concerning — Above 7-Pip Limit (7–8 Pips)';desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips — above limit. Ask bank to tighten.';}
+  else if (pips<=9){cls='warn';icon='⛔';title='High Margin — Well Above Limit (8–9 Pips)';desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips. Negotiate firmly.';}
+  else{cls='bad';icon='❌';title='Red Flag — Reject This Rate (> 9 Pips)';desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips. Unacceptable. Request new quote.';}
   pb.className='pip-nb '+cls; vb.className='vb '+cls;
   document.getElementById('vIcon').textContent=icon;
   document.getElementById('vTitle').textContent=title;
@@ -1146,23 +1176,21 @@ function calculate() {
   marker.style.left=Math.min(Math.max(pips/10*100,0),100)+'%';
   document.getElementById('lblGive').textContent=giveLabel;
   document.getElementById('valGive').textContent=youGive;
-  document.getElementById('valSpot').textContent=spot.toFixed(cfg.decimals)+'  (Mid)';
+  document.getElementById('valSpot').textContent=refRate.toFixed(cfg.decimals)+'  (Market '+refLabel+')';
   document.getElementById('valBank').textContent=bankRate.toFixed(cfg.decimals)+'  (Bank)';
   document.getElementById('lblGet').textContent=getLabel;
   document.getElementById('valGet').textContent=youGet;
-  var mktAmt,bankAmt,diffAmt,diffCcy;
-  if (isGivingCcy1){mktAmt=amtCcy1*spot;bankAmt=amtCcy2;diffAmt=bankAmt-mktAmt;diffCcy=cfg.ccy2;document.getElementById('valMkt').textContent=fmtN(mktAmt.toFixed(2))+' '+cfg.ccy2;}
-  else{mktAmt=amtCcy2/spot;bankAmt=amtCcy1;diffAmt=bankAmt-mktAmt;diffCcy=cfg.ccy1;document.getElementById('valMkt').textContent=fmtN(mktAmt.toFixed(0))+' '+cfg.ccy1;}
+  var mktAmt=amtCcy1*refRate;
+  var diffAmt=amtCcy2-mktAmt;
+  document.getElementById('valMkt').textContent=fmtN(mktAmt.toFixed(2))+' '+cfg.ccy2+' (at '+refLabel+')';
   var dr=document.getElementById('diffRow');
-  if (diffAmt>=0){dr.className='dok';document.getElementById('diffLbl').textContent='You receive MORE than market (\u2713 Favourable)';document.getElementById('diffVal').textContent='+'+fmtN(Math.abs(diffAmt).toFixed(2))+' '+diffCcy;}
-  else{dr.className='dng';document.getElementById('diffLbl').textContent='You receive LESS than market (\u2717 Unfavourable)';document.getElementById('diffVal').textContent='\u2212'+fmtN(Math.abs(diffAmt).toFixed(2))+' '+diffCcy;}
-  var wordsAmt=isGivingCcy1?amtCcy2:amtCcy1; var wordsCcy=isGivingCcy1?cfg.ccy2:cfg.ccy1;
-  document.getElementById('valWords').textContent=numberToWords(wordsAmt,wordsCcy);
+  if (diffAmt>=0){dr.className='dok';document.getElementById('diffLbl').textContent='You receive MORE than '+refLabel+' (✓ Favourable)';document.getElementById('diffVal').textContent='+'+fmtN(Math.abs(diffAmt).toFixed(2))+' '+cfg.ccy2;}
+  else{dr.className='dng';document.getElementById('diffLbl').textContent='You receive LESS than '+refLabel+' (✗ Unfavourable)';document.getElementById('diffVal').textContent='−'+fmtN(Math.abs(diffAmt).toFixed(2))+' '+cfg.ccy2;}
+  document.getElementById('valWords').textContent=numberToWords(amtCcy2,cfg.ccy2);
   document.getElementById('amtSection').style.display='block';
   document.getElementById('confirmBtn').disabled=false;
   updateAmtWords();
 }
-
 function resetCalc() {
   document.getElementById('pipVal').textContent='\u2014';
   document.getElementById('pipBlock').className='pip-nb';
@@ -1178,9 +1206,7 @@ function resetCalc() {
 function updateAmtWords() {
   var raw=parseFloat(document.getElementById('amount').value);
   var cfg=PAIR_CONFIG[currentPair];
-  var gc=(dealType==='SELL_EUR'||dealType==='BUY_USD'||dealType==='SELL_USD'||dealType==='BUY_ZAR');
-  var ccy=gc?cfg.ccy1:cfg.ccy2;
-  document.getElementById('amtWords').textContent=(!isNaN(raw)&&raw>0)?numberToWords(raw,ccy):'';
+  document.getElementById('amtWords').textContent=(!isNaN(raw)&&raw>0)?numberToWords(raw,cfg.ccy1):'';
 }
 
 /* ═══ AMOUNT IN WORDS ═══ */
@@ -1209,31 +1235,33 @@ function fmtN(n){return Number(n).toLocaleString('en-US');}
 function confirmDeal() {
   var bankRate=parseFloat(document.getElementById('bankRate').value);
   var inputAmt=parseFloat(document.getElementById('amount').value);
-  var dealNo=document.getElementById('dealNo').value||'\u2014';
+  var dealNo=document.getElementById('dealNo').value||'—';
   var valueDate=document.getElementById('valueDate').value;
-  var givenBy=document.getElementById('givenBy').value||'\u2014';
+  var givenBy=document.getElementById('givenBy').value||'—';
   var spot=liveRate; var cfg=PAIR_CONFIG[currentPair];
-  var isGivingCcy1=(dealType==='SELL_EUR'||dealType==='BUY_USD'||dealType==='SELL_USD'||dealType==='BUY_ZAR');
-  var amtCcy1=isGivingCcy1?inputAmt:(inputAmt/bankRate);
-  var amtCcy2=isGivingCcy1?(inputAmt*bankRate):inputAmt;
+  var amtCcy1 = inputAmt;
+  var amtCcy2 = inputAmt * bankRate;
   var pipMult=currentPair==='EURUSD'?10000:100;
-  var pipsVal=(Math.abs(bankRate-spot)*pipMult).toFixed(2);
-  var margDiff=Math.abs(bankRate-spot).toFixed(cfg.decimals);
-  var fmtDate=valueDate?new Date(valueDate+'T00:00:00').toLocaleDateString('en-GB'):'\u2014';
+  var isSellCD=(dealType==='SELL_EUR'||dealType==='SELL_USD'||dealType==='SELL_ZAR');
+  var refRateCD=isSellCD?(spot-cfg.spread):(spot+cfg.spread);
+  var refLblCD=isSellCD?'Bid':'Ask';
+  var pipsVal=(Math.abs(bankRate-refRateCD)*pipMult).toFixed(2);
+  var margDiff=Math.abs(bankRate-refRateCD).toFixed(cfg.decimals);
+  var fmtDate=valueDate?new Date(valueDate+'T00:00:00').toLocaleDateString('en-GB'):'—';
   var now=new Date(); var timeStr=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); var todayStr=now.toLocaleDateString('en-GB');
   var typeLabel=cfg.dealLabels[dealType]||dealType;
-  var getCcy=isGivingCcy1?cfg.ccy2:cfg.ccy1; var getAmt=isGivingCcy1?amtCcy2:amtCcy1;
-  var amtInWords=numberToWords(getAmt,getCcy);
-  var subject='Forex Deal Confirmation \u2013 '+typeLabel+' \u2013 '+fmtDate+' \u2013 Deal No. '+dealNo;
-  var SEP='\u2500'.repeat(44);
+  var amtInWords=numberToWords(amtCcy2,cfg.ccy2);
+  var subject='Forex Deal Confirmation – '+typeLabel+' – '+fmtDate+' – Deal No. '+dealNo;
+  var SEP='─'.repeat(44);
   var body='Dear Teams,\n\nPlease find below the Forex Deal details for your reference:\n\n'+SEP+'\n'
     +'  DEAL TYPE      :  '+typeLabel+'\n'+'  PAIR           :  '+cfg.label+'\n'
     +'  '+cfg.ccy1+' AMOUNT     :  '+fmtN(amtCcy1.toFixed(0))+'\n'
     +'  '+cfg.ccy2+' AMOUNT     :  '+fmtN(amtCcy2.toFixed(2))+'\n'
-    +'  DEAL RATE      :  '+bankRate.toFixed(cfg.decimals)+'\n'+'  SPOT RATE      :  '+spot.toFixed(cfg.decimals)+'\n'
+    +'  DEAL RATE      :  '+bankRate.toFixed(cfg.decimals)+'\n'
+    +'  SPOT RATE ('+refLblCD+'):  '+refRateCD.toFixed(cfg.decimals)+'\n'
     +'  MARGINAL DIFF  :  '+margDiff+'\n'+'  DIFF IN PIPs   :  '+pipsVal+' pips\n'
     +'  DEAL No.       :  '+dealNo+'\n'+'  VALUE DATE     :  '+fmtDate+'\n'+'  GIVEN BY       :  '+givenBy+'\n'
-    +SEP+'\n\n'+'  AMOUNT IN WORDS: '+amtInWords+'\n\n'+'** Use The Deal After 20 Minutes **\n\nRegards,\nES';
+    +SEP+'\n\n'+'  AMOUNT IN WORDS: '+amtInWords+'\n\n'+'** Use The Deal After 20 Minutes **\n\nRegards,\nES'
   document.getElementById('emailSubject').textContent=subject;
   document.getElementById('emailBody').textContent=body;
   document.getElementById('emailPanel').style.display='block';
@@ -1244,7 +1272,7 @@ function confirmDeal() {
     id:Date.now(),datetime:now.toISOString(),date:todayStr,time:timeStr,
     pair:currentPair,type:dealType,typeLabel:typeLabel,
     dealNo:dealNo,valueDate:fmtDate,givenBy:givenBy,
-    bankRate:bankRate.toFixed(cfg.decimals),spotRate:spot.toFixed(cfg.decimals),
+    bankRate:bankRate.toFixed(cfg.decimals),spotRate:refRateCD.toFixed(cfg.decimals),
     amtCcy1:amtCcy1.toFixed(0),amtCcy2:amtCcy2.toFixed(2),
     ccy1:cfg.ccy1,ccy2:cfg.ccy2,pips:pipsVal,pipCls:pipCls,
     margDiff:margDiff,amtWords:amtInWords
@@ -1303,8 +1331,11 @@ function renderHistory() {
       +'<td class="dim">#'+(d.dealNo||'\u2014')+'</td>'
       +'<td class="dim">'+(d.valueDate||'\u2014')+'</td>'
       +'<td class="dim">'+(d.givenBy||'\u2014')+'</td>'
-      +'<td><button class="act-btn edit-btn" onclick="openEditModal('+d.id+')">&#9998; Edit</button>'
-      +'<button class="act-btn del-btn" onclick="deleteRecord('+d.id+')">&#128465; Del</button></td>'
+      +'<td style="white-space:nowrap">'
+      +'<button class="act-btn" style="color:var(--accent);border-color:var(--accent-bd);background:var(--accent-bg)" onclick="openEmailPreview('+d.id+')">&#128231; Email</button>'
+      +'<button class="act-btn edit-btn" onclick="openEditModal('+d.id+')">&#9998; Edit</button>'
+      +'<button class="act-btn del-btn" onclick="deleteRecord('+d.id+')">&#128465; Del</button>'
+      +'</td>'
       +'</tr>';
   }).join('');
   el.innerHTML='<div class="htw"><table class="htbl"><thead><tr>'
@@ -1814,6 +1845,81 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
+
+/* ═══ EMAIL PREVIEW FROM HISTORY ═══ */
+function openEmailPreview(id) {
+  var d = dealHistory.find(function(x){ return x.id === id; });
+  if (!d) return;
+  var cfg = PAIR_CONFIG[d.pair] || PAIR_CONFIG.EURUSD;
+  var SEP = '─'.repeat(44);
+  var typeLabel = d.typeLabel || d.type;
+  var isSellEP = (d.type==='SELL_EUR'||d.type==='SELL_USD'||d.type==='SELL_ZAR');
+  var refLblEP = isSellEP ? 'Bid' : 'Ask';
+  var subject = 'Forex Deal Confirmation – '+typeLabel+' – '+(d.valueDate||'—')+' – Deal No. '+(d.dealNo||'—');
+  var body = 'Dear Teams,
+
+Please find below the Forex Deal details for your reference:
+
+'
+    +SEP+'
+'
+    +'  DEAL TYPE      :  '+typeLabel+'
+'
+    +'  PAIR           :  '+(d.pair==='EURUSD'?'EUR/USD':'USD/ZAR')+'
+'
+    +'  '+(d.ccy1||'EUR')+' AMOUNT     :  '+Number(d.amtCcy1||0).toLocaleString('en-US')+'
+'
+    +'  '+(d.ccy2||'USD')+' AMOUNT     :  '+Number(d.amtCcy2||0).toLocaleString('en-US')+'
+'
+    +'  DEAL RATE      :  '+(d.bankRate||'—')+'
+'
+    +'  SPOT RATE ('+refLblEP+'):  '+(d.spotRate||'—')+'
+'
+    +'  MARGINAL DIFF  :  '+(d.margDiff||'—')+'
+'
+    +'  DIFF IN PIPs   :  '+(d.pips||'—')+' pips
+'
+    +'  DEAL No.       :  '+(d.dealNo||'—')+'
+'
+    +'  VALUE DATE     :  '+(d.valueDate||'—')+'
+'
+    +'  GIVEN BY       :  '+(d.givenBy||'—')+'
+'
+    +SEP+'
+
+'
+    +'  AMOUNT IN WORDS: '+(d.amtWords||'—')+'
+
+'
+    +'** Use The Deal After 20 Minutes **
+
+Regards,
+ES';
+  document.getElementById('prevEmailSubject').textContent = subject;
+  document.getElementById('prevEmailBody').textContent = body;
+  document.getElementById('prevCopyBtn').textContent = '⚐ Copy to Clipboard';
+  document.getElementById('prevCopyBtn').style.background = 'var(--accent)';
+  document.getElementById('emailPreviewModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeEmailPreviewModal() {
+  document.getElementById('emailPreviewModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function closeEmailPreview(e) {
+  if (e.target === document.getElementById('emailPreviewModal')) closeEmailPreviewModal();
+}
+function copyPreviewEmail() {
+  var s = document.getElementById('prevEmailSubject').textContent;
+  var b = document.getElementById('prevEmailBody').textContent;
+  navigator.clipboard.writeText('Subject: '+s+'
+
+'+b).then(function(){
+    var btn = document.getElementById('prevCopyBtn');
+    btn.textContent = '✔ Copied!'; btn.style.background = 'var(--green)';
+    setTimeout(function(){ btn.textContent = '⚐ Copy to Clipboard'; btn.style.background = 'var(--accent)'; }, 2500);
+  });
 }
 
 /* ═══ HELPERS ═══ */
