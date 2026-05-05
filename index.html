@@ -29,6 +29,44 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.6;min-height:100vh;}
 
+/* ── LIVE RATE CARD ── */
+.live-rate-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 20px;margin-bottom:16px;position:relative;overflow:hidden;}
+.live-rate-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#06b6d4,var(--accent));background-size:200% 100%;animation:shimmer 3s linear infinite;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.lrc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.lrc-title{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);}
+.lrc-status{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;}
+.lrc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.lrc-dot.live{background:#10b981;box-shadow:0 0 6px #10b981;animation:pulse 2s infinite;}
+.lrc-dot.loading{background:var(--amber);animation:pulse 1s infinite;}
+.lrc-dot.error{background:var(--red);}
+.lrc-dot.stale{background:var(--text4);}
+.lrc-status.live{color:#10b981;} .lrc-status.loading{color:var(--amber);} .lrc-status.error{color:var(--red);} .lrc-status.stale{color:var(--text3);}
+.lrc-pairs{display:flex;gap:12px;flex-wrap:wrap;}
+.lrc-pair-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 16px;flex:1;min-width:200px;cursor:pointer;transition:all .2s;position:relative;}
+.lrc-pair-box:hover{border-color:var(--accent);background:var(--accent-bg);}
+.lrc-pair-box.highlighted{border-color:#10b981;background:#f0fdf4;}
+.lrc-pair-label{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+.lrc-rate-row{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;}
+.lrc-rate{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--text);line-height:1;transition:color .3s;}
+.lrc-rate.up{color:#10b981;} .lrc-rate.down{color:var(--red);}
+.lrc-change{font-size:12px;font-weight:600;padding:2px 7px;border-radius:12px;}
+.lrc-change.up{background:#f0fdf4;color:#10b981;} .lrc-change.down{background:var(--red-bg);color:var(--red);} .lrc-change.flat{background:var(--surface2);color:var(--text3);}
+.lrc-ba-row{display:flex;gap:12px;margin-top:6px;}
+.lrc-ba{font-size:11px;color:var(--text3);}
+.lrc-ba b{font-family:'IBM Plex Mono',monospace;color:var(--text2);}
+.lrc-copy-hint{font-size:10px;color:var(--accent);font-weight:600;margin-top:6px;display:none;}
+.lrc-pair-box:hover .lrc-copy-hint{display:block;}
+.lrc-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap;gap:6px;}
+.lrc-source{font-size:11px;color:var(--text3);}
+.lrc-source b{color:var(--text2);}
+.lrc-refresh-btn{font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-bg);border:1px solid var(--accent-bd);padding:4px 12px;border-radius:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .2s;}
+.lrc-refresh-btn:hover{background:#dbeafe;}
+.lrc-refresh-btn:disabled{color:var(--text4);background:var(--surface2);border-color:var(--border);cursor:not-allowed;}
+.lrc-copied-toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--rs);font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
+.lrc-copied-toast.show{opacity:1;}
+.lrc-skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:skeleton 1.5s infinite;border-radius:4px;height:28px;width:100px;display:inline-block;}
+
 /* ── TOPNAV ── */
 .topnav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 1px 3px rgba(0,30,60,.06);}
 .brand{display:flex;align-items:center;gap:10px;}
@@ -384,6 +422,48 @@ tbody tr:hover{background:var(--surface2);}
 ══════════════════════════════════════ -->
 <div class="page active" id="pageDeal">
 
+<!-- LIVE RATE CARD -->
+<div class="live-rate-card" id="liveRateCard">
+  <div class="lrc-header">
+    <div class="lrc-title">&#127760; Live Indicative Rates <span style="font-weight:400;color:var(--text4);font-size:10px;margin-left:6px">(Click card to fetch live &amp; auto-add to tracker)</span></div>
+    <div class="lrc-status loading" id="lrcStatus"><div class="lrc-dot loading" id="lrcDot"></div><span id="lrcStatusTxt">Fetching rates...</span></div>
+  </div>
+  <div class="lrc-pairs">
+    <!-- EUR/USD -->
+    <div class="lrc-pair-box" id="lrcBoxEURUSD" onclick="copyRateToField('EURUSD')" title="Click to copy to rate field">
+      <div class="lrc-pair-label">EUR / USD</div>
+      <div class="lrc-rate-row">
+        <div class="lrc-rate" id="lrcRateEURUSD"><span class="lrc-skeleton"></span></div>
+        <div class="lrc-change flat" id="lrcChangeEURUSD"></div>
+      </div>
+      <div class="lrc-ba-row">
+        <div class="lrc-ba">Bid: <b id="lrcBidEURUSD">—</b></div>
+        <div class="lrc-ba">Ask: <b id="lrcAskEURUSD">—</b></div>
+      </div>
+      <div class="lrc-copy-hint">&#8635; Click to fetch live rate &amp; add to tracker</div>
+    </div>
+    <!-- USD/ZAR -->
+    <div class="lrc-pair-box" id="lrcBoxUSDZAR" onclick="copyRateToField('USDZAR')" title="Click to copy to rate field">
+      <div class="lrc-pair-label">USD / ZAR</div>
+      <div class="lrc-rate-row">
+        <div class="lrc-rate" id="lrcRateUSDZAR"><span class="lrc-skeleton"></span></div>
+        <div class="lrc-change flat" id="lrcChangeUSDZAR"></div>
+      </div>
+      <div class="lrc-ba-row">
+        <div class="lrc-ba">Bid: <b id="lrcBidUSDZAR">—</b></div>
+        <div class="lrc-ba">Ask: <b id="lrcAskUSDZAR">—</b></div>
+      </div>
+      <div class="lrc-copy-hint">&#8635; Click to fetch live rate &amp; add to tracker</div>
+    </div>
+  </div>
+  <div class="lrc-footer">
+    <div class="lrc-source">Source: <b id="lrcSourceTxt">—</b> &middot; <span id="lrcTimeTxt">—</span> &middot; <span id="lrcNextRefresh" style="color:var(--text4);font-size:10px"></span> &middot; <span style="color:var(--amber);font-size:10px">&#9888; Indicative only &mdash; verify with FXStreet before dealing</span>
+      &nbsp;<span id="lrcNoKeyHint" style="display:none;color:var(--accent);font-size:10px;font-weight:600">&#8599; <a href="#" onclick="openConfig();return false;" style="color:var(--accent)">Add free Twelve Data key for live rates</a></span></div>
+    <button class="lrc-refresh-btn" id="lrcRefreshBtn" onclick="fetchLiveRates()">&#8635; Refresh</button>
+  </div>
+</div>
+<div class="lrc-copied-toast" id="lrcToast"></div>
+
 <!-- PAIR TABS -->
 <div class="pair-tabs">
   <button class="pair-tab active" id="tabEURUSD" onclick="setPair('EURUSD')">EUR / USD</button>
@@ -578,6 +658,16 @@ tbody tr:hover{background:var(--surface2);}
         <label class="em-lbl">Supabase Project URL</label>
         <input class="em-fi" type="text" id="cfg-url" placeholder="https://your-project-id.supabase.co" style="font-size:13px">
       </div>
+      <div class="em-fg" style="margin-bottom:14px;padding:12px 14px;background:var(--stellar-bg);border:1px solid var(--stellar-bd);border-radius:var(--rs)">
+        <label class="em-lbl" style="color:var(--stellar)">&#127760; Live Rate API Key <span style="font-weight:400;color:var(--text3)">(optional but recommended)</span></label>
+        <input class="em-fi" type="text" id="cfg-ratekey" placeholder="e.g. a1b2c3d4e5f6..." style="font-size:13px;margin-top:6px">
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.6">
+          Get a <b>free API key</b> from
+          <a href="https://twelvedata.com/register" target="_blank" style="color:var(--accent);font-weight:600">twelvedata.com/register</a>
+          (no credit card, 800 calls/day &mdash; enough for 1 refresh every 2 mins).<br>
+          Without a key, rates shown are <b>prior day ECB close</b>, not live.
+        </div>
+      </div>
       <div class="em-fg" style="margin-bottom:14px">
         <label class="em-lbl">Supabase Anon / Public Key</label>
         <input class="em-fi" type="text" id="cfg-key" placeholder="eyJhbGci... or sb_publishable_..." style="font-size:13px">
@@ -709,7 +799,8 @@ function saveConfig() {
     showCfgErr('Key should start with eyJ... or sb_publishable_... \u2014 use the Publishable key, not the Secret key.');
     return;
   }
-  var cfg = { url: url, key: key, pass: pass };
+  var rateApiKey = (document.getElementById('cfg-ratekey').value || '').trim();
+  var cfg = { url: url, key: key, pass: pass, rateApiKey: rateApiKey };
   localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
   document.getElementById('cfg-ok-msg').style.display = 'block';
   document.getElementById('cfg-err-msg').style.display = 'none';
@@ -727,9 +818,10 @@ function skipConfig() {
 }
 function openConfig() {
   var cfg = getConfig();
-  document.getElementById('cfg-url').value  = cfg.url  || '';
-  document.getElementById('cfg-key').value  = cfg.key  || '';
-  document.getElementById('cfg-pass').value = cfg.pass || '';
+  document.getElementById('cfg-url').value     = cfg.url        || '';
+  document.getElementById('cfg-key').value     = cfg.key        || '';
+  document.getElementById('cfg-pass').value    = cfg.pass       || '';
+  document.getElementById('cfg-ratekey').value = cfg.rateApiKey || '';
   document.getElementById('cfg-ok-msg').style.display = 'none';
   document.getElementById('cfg-err-msg').style.display = 'none';
   document.getElementById('configModal').style.display = 'flex';
@@ -1472,6 +1564,258 @@ function closeHelpOutside(e){if(e.target===document.getElementById('helpModal'))
 function showHelpTab(id,btn){document.querySelectorAll('.help-section').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.htab').forEach(function(b){b.classList.remove('active');});document.getElementById('hs-'+id).classList.add('active');btn.classList.add('active');}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeHelp();closeEditModal();}});
 
+/* ═══ LIVE INDICATIVE RATES ═══ */
+var lrcRates = { EURUSD: null, USDZAR: null };
+var lrcPrevRates = { EURUSD: null, USDZAR: null };
+var lrcRefreshTimer = null;
+var LRC_SPREAD = { EURUSD: 0.00020, USDZAR: 0.05 };
+var LRC_DEC    = { EURUSD: 5, USDZAR: 4 };
+
+async function fetchLiveRates() {
+  setLrcStatus('loading', 'Fetching live rates...');
+  document.getElementById('lrcRefreshBtn').disabled = true;
+  document.getElementById('lrcRefreshBtn').textContent = '⏳ Fetching...';
+
+  var result = null;
+  var cfg = getConfig();
+
+  if (!cfg.rateApiKey) {
+    setLrcStatus('error', 'No API key — click ⚙ to add your Twelve Data key');
+    showLrcNoKey();
+    document.getElementById('lrcRefreshBtn').disabled = false;
+    document.getElementById('lrcRefreshBtn').textContent = '↻ Refresh';
+    return;
+  }
+
+  try {
+    result = await fetchViaTwelveData(cfg.rateApiKey);
+  } catch(e) {
+    console.warn('Twelve Data error:', e.message);
+  }
+
+  if (result) {
+    lrcPrevRates.EURUSD = lrcRates.EURUSD;
+    lrcPrevRates.USDZAR = lrcRates.USDZAR;
+    lrcRates.EURUSD = result.eurusd;
+    lrcRates.USDZAR = result.usdzar;
+    renderLrcRates(result.source, result.indicative);
+    var freshness = result.indicative ? '⚠️ Daily (ECB close)' : '● Live';
+    setLrcStatus('live', freshness + ' — ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  } else {
+    setLrcStatus('error', 'Fetch failed — check connection');
+    showLrcError();
+  }
+
+  document.getElementById('lrcRefreshBtn').disabled = false;
+  document.getElementById('lrcRefreshBtn').textContent = '↻ Refresh';
+
+  // Auto-refresh every 90 seconds with countdown
+  clearTimeout(lrcRefreshTimer);
+  lrcRefreshTimer = setTimeout(fetchLiveRates, 90000);
+  startLrcCountdown(90);
+}
+
+var lrcCountdownTimer = null;
+var lrcCountdownSec = 0;
+function startLrcCountdown(secs) {
+  clearInterval(lrcCountdownTimer);
+  lrcCountdownSec = secs;
+  var el = document.getElementById('lrcNextRefresh');
+  lrcCountdownTimer = setInterval(function() {
+    lrcCountdownSec--;
+    if (el) el.textContent = 'Next refresh in ' + lrcCountdownSec + 's';
+    if (lrcCountdownSec <= 0) clearInterval(lrcCountdownTimer);
+  }, 1000);
+}
+
+/* PRIMARY: Twelve Data live forex (requires free API key — see config) */
+function fetchViaTwelveData(apiKey) {
+  var url = 'https://api.twelvedata.com/price?symbol=EUR/USD,USD/ZAR&apikey=' + apiKey;
+  var fetchP = fetch(url).then(function(res) {
+    if (!res.ok) throw new Error('TwelveData HTTP ' + res.status);
+    return res.json();
+  }).then(function(data) {
+    // TwelveData returns { "EUR/USD": { price: "1.08520" }, "USD/ZAR": { price: "18.45" } }
+    // OR single object if one symbol
+    var eurusd, usdzar;
+    if (data['EUR/USD']) {
+      eurusd  = parseFloat(data['EUR/USD'].price);
+      usdzar  = data['USD/ZAR'] ? parseFloat(data['USD/ZAR'].price) : null;
+    } else if (data.price) {
+      eurusd = parseFloat(data.price);
+    } else if (data.code) {
+      throw new Error('TwelveData error: ' + (data.message || data.code));
+    }
+    if (!eurusd || isNaN(eurusd) || eurusd < 0.5 || eurusd > 3) throw new Error('Invalid EUR/USD from TwelveData');
+    return {
+      eurusd:    eurusd,
+      usdzar:    (usdzar && !isNaN(usdzar) && usdzar > 5) ? usdzar : null,
+      source:    'Twelve Data (Live interbank)',
+      indicative: false
+    };
+  });
+  var timeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, 10000); });
+  return Promise.race([fetchP, timeout]);
+}
+
+/* No fallback APIs — Twelve Data only */
+
+function renderLrcRates(source) {
+  renderOnePair('EURUSD', lrcRates.EURUSD, lrcPrevRates.EURUSD, 5);
+  renderOnePair('USDZAR', lrcRates.USDZAR, lrcPrevRates.USDZAR, 4);
+  document.getElementById('lrcSourceTxt').textContent = source || 'Twelve Data';
+  document.getElementById('lrcTimeTxt').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function renderOnePair(pair, rate, prev, dec) {
+  var rateEl   = document.getElementById('lrcRate'  + pair);
+  var changeEl = document.getElementById('lrcChange'+ pair);
+  var bidEl    = document.getElementById('lrcBid'   + pair);
+  var askEl    = document.getElementById('lrcAsk'   + pair);
+  var sp       = LRC_SPREAD[pair] || 0.0002;
+
+  if (!rate) {
+    rateEl.innerHTML = '<span style="color:var(--text3);font-size:14px">N/A</span>';
+    return;
+  }
+
+  var rateStr = rate.toFixed(dec);
+  rateEl.innerHTML = rateStr;
+  bidEl.textContent = (rate - sp).toFixed(dec);
+  askEl.textContent = (rate + sp).toFixed(dec);
+
+  // Direction
+  if (prev !== null && prev !== undefined) {
+    var diff = rate - prev;
+    var sign = diff >= 0 ? '+' : '';
+    if (diff > 0) {
+      rateEl.className = 'lrc-rate up';
+      changeEl.className = 'lrc-change up';
+      changeEl.textContent = '▲ ' + sign + diff.toFixed(dec);
+    } else if (diff < 0) {
+      rateEl.className = 'lrc-rate down';
+      changeEl.className = 'lrc-change down';
+      changeEl.textContent = '▼ ' + diff.toFixed(dec);
+    } else {
+      rateEl.className = 'lrc-rate';
+      changeEl.className = 'lrc-change flat';
+      changeEl.textContent = '—';
+    }
+    setTimeout(function(){ rateEl.className = 'lrc-rate'; }, 2000);
+  } else {
+    rateEl.className = 'lrc-rate';
+    changeEl.className = 'lrc-change flat';
+    changeEl.textContent = '';
+  }
+}
+
+function showLrcError() {
+  ['EURUSD','USDZAR'].forEach(function(pair) {
+    var el = document.getElementById('lrcRate' + pair);
+    if (el) el.innerHTML = '<span style="color:var(--text3);font-size:13px">Unavailable</span>';
+    var bid = document.getElementById('lrcBid' + pair);
+    var ask = document.getElementById('lrcAsk' + pair);
+    if (bid) bid.textContent = '—';
+    if (ask) ask.textContent = '—';
+  });
+  document.getElementById('lrcSourceTxt').textContent = 'Check API key or connection';
+  document.getElementById('lrcTimeTxt').textContent = 'Failed at ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function showLrcNoKey() {
+  ['EURUSD','USDZAR'].forEach(function(pair) {
+    var el = document.getElementById('lrcRate' + pair);
+    if (el) el.innerHTML = '<span style="color:var(--text3);font-size:13px;font-family:IBM Plex Sans,sans-serif">No API key</span>';
+    var bid = document.getElementById('lrcBid' + pair);
+    var ask = document.getElementById('lrcAsk' + pair);
+    if (bid) bid.textContent = '—';
+    if (ask) ask.textContent = '—';
+  });
+  document.getElementById('lrcSourceTxt').textContent = 'Twelve Data key required';
+  document.getElementById('lrcTimeTxt').textContent = '';
+  var hint = document.getElementById('lrcNoKeyHint');
+  if (hint) hint.style.display = 'block';
+}
+
+function setLrcStatus(state, txt) {
+  var dot    = document.getElementById('lrcDot');
+  var status = document.getElementById('lrcStatus');
+  var stTxt  = document.getElementById('lrcStatusTxt');
+  dot.className    = 'lrc-dot ' + state;
+  status.className = 'lrc-status ' + state;
+  stTxt.textContent = txt;
+}
+
+function copyRateToField(pair) {
+  var cfg = getConfig();
+  if (!cfg.rateApiKey) {
+    openConfig();
+    return;
+  }
+
+  // Switch to correct pair tab
+  if (pair !== currentPair) setPair(pair);
+
+  // Highlight card immediately for feedback
+  var box = document.getElementById('lrcBox' + pair);
+  box.classList.add('highlighted');
+
+  // Fetch a fresh rate then auto-log it to the version tracker
+  setLrcStatus('loading', 'Fetching fresh rate...');
+  document.getElementById('lrcRefreshBtn').disabled = true;
+  document.getElementById('lrcRefreshBtn').textContent = '⏳';
+
+  fetchViaTwelveData(cfg.rateApiKey).then(function(result) {
+    if (!result) throw new Error('No result');
+
+    lrcPrevRates.EURUSD = lrcRates.EURUSD;
+    lrcPrevRates.USDZAR = lrcRates.USDZAR;
+    lrcRates.EURUSD = result.eurusd;
+    lrcRates.USDZAR = result.usdzar;
+    renderLrcRates(result.source);
+    setLrcStatus('live', '● Live — ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+
+    // Auto-log this rate into the version tracker (same as clicking Add Rate)
+    var rate = pair === 'EURUSD' ? result.eurusd : result.usdzar;
+    var cfg2 = PAIR_CONFIG[pair];
+    if (!rate || !cfg2) {
+      showToast('⚠ ' + pair + ' rate not available');
+      return;
+    }
+    var dec = LRC_DEC[pair] || 5;
+
+    // Make sure we're on the right pair
+    if (currentPair !== pair) setPair(pair);
+
+    // Inject into input and call applyManualRate programmatically
+    document.getElementById('manualRateInput').value = rate.toFixed(dec);
+    applyManualRate();
+
+    showToast('✓ ' + pair.slice(0,3) + '/' + pair.slice(3) + ' ' + rate.toFixed(dec) + ' refreshed and added to tracker');
+
+    // Reset countdown
+    clearTimeout(lrcRefreshTimer);
+    lrcRefreshTimer = setTimeout(fetchLiveRates, 90000);
+    startLrcCountdown(90);
+
+  }).catch(function(e) {
+    setLrcStatus('error', 'Refresh failed — check API key');
+    showLrcError();
+    showToast('⚠ Rate fetch failed: ' + e.message);
+  }).finally(function() {
+    document.getElementById('lrcRefreshBtn').disabled = false;
+    document.getElementById('lrcRefreshBtn').textContent = '↻ Refresh';
+    setTimeout(function(){ box.classList.remove('highlighted'); }, 1500);
+  });
+}
+
+function showToast(msg) {
+  var t = document.getElementById('lrcToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
+
 /* ═══ HELPERS ═══ */
 function updatePillCount() {
   var n = dealHistory.length;
@@ -1541,6 +1885,7 @@ async function loadHistoryFromSource() {
 document.getElementById('valueDate').value=new Date().toISOString().split('T')[0];
 document.getElementById('amount').addEventListener('input',updateAmtWords);
 setPair('EURUSD');
+fetchLiveRates(); // Start live rate fetch
 
 // Check if first time (no config set)
 var _cfg = getConfig();
