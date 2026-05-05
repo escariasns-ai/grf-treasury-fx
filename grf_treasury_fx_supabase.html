@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRF Treasury FX</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ══════════════════════════════════════════
+   GRF TREASURY FX — UNIFIED SYSTEM
+   Deal Entry + Analytics Dashboard
+══════════════════════════════════════════ */
+:root {
+  --bg:#f2f4f7; --surface:#fff; --surface2:#f7f9fb; --surface3:#eef0f3;
+  --border:#dde3ec; --border2:#c8d2de;
+  --text:#1c2b3a; --text2:#4a6070; --text3:#8a9eb0; --text4:#b0c0cc;
+  --accent:#2563eb; --accent-bg:#eff4ff; --accent-bd:#bfdbfe;
+  --green:#0d7a4e; --green-bg:#ecfaf3; --green-bd:#a3d9be;
+  --red:#b91c3c;   --red-bg:#fff0f3;   --red-bd:#f4a8b8;
+  --amber:#92600a; --amber-bg:#fffbeb; --amber-bd:#f0d090;
+  --orange:#c45000;--orange-bg:#fff4ed;--orange-bd:#f9c9a0;
+  --stellar-bg:#f0fdf4; --stellar-bd:#86efac; --stellar:#14532d;
+  --shadow:0 1px 3px rgba(0,30,60,.07),0 1px 2px rgba(0,30,60,.05);
+  --shadow-md:0 4px 12px rgba(0,30,60,.08),0 2px 4px rgba(0,30,60,.04);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.10),0 4px 8px rgba(0,0,0,.05);
+  --r:10px; --rs:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.6;min-height:100vh;}
+
+/* ── TOPNAV ── */
+.topnav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 1px 3px rgba(0,30,60,.06);}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.5px;}
+.brand-name{font-size:16px;font-weight:700;letter-spacing:-.3px;color:var(--text);}
+.brand-name span{color:var(--accent);}
+.brand-sub{font-size:11px;color:var(--text3);margin-top:-2px;}
+.nav-tabs{display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;}
+.nav-tab{padding:6px 18px;border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text3);transition:all .2s;}
+.nav-tab.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(37,99,235,.3);}
+.nav-tab:not(.active):hover{background:var(--surface);color:var(--text2);}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.pill{display:flex;align-items:center;gap:6px;background:var(--green-bg);border:1px solid var(--green-bd);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;color:var(--green);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+.nav-btn{padding:6px 14px;border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;}
+.nav-btn:hover{background:var(--surface2);}
+.nav-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(37,99,235,.25);}
+.nav-btn.primary:hover{background:#1d4ed8;}
+.nav-btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--red-bd);}
+.nav-btn.danger:hover{background:#ffe0e6;}
+
+/* ── PAGE WRAPPER ── */
+.page{display:none;padding:24px 24px 48px;}
+.page.active{display:block;}
+
+/* ══════════ DEAL ENTRY STYLES ══════════ */
+.pair-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.pair-tab{padding:7px 18px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .2s;}
+.pair-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pair-tab:not(.active):hover{background:var(--surface2);}
+.rate-banner{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.rbl{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;}
+.rbl span{display:block;font-size:11px;font-weight:400;color:var(--text3);margin-top:1px;}
+.rate-iw{flex:1;min-width:150px;}
+.rate-iw input{width:100%;padding:9px 13px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500;outline:none;transition:border-color .2s;}
+.rate-iw input:focus{border-color:var(--accent);background:#fff;}
+.rate-iw input::placeholder{color:var(--text3);font-size:15px;}
+.set-btn{background:var(--accent);color:#fff;border:none;padding:11px 22px;border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;}
+.set-btn:hover{background:#1d4ed8;}
+.tracker-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 20px;margin-bottom:16px;}
+.tracker-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.tracker-title{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);}
+.tracker-current{display:flex;align-items:baseline;gap:10px;}
+.rate-big{font-family:'IBM Plex Mono',monospace;font-size:44px;font-weight:500;line-height:1;color:var(--text);transition:color .4s;}
+.rate-big.up{color:var(--green);}.rate-big.down{color:var(--red);}
+.rate-dir{font-size:13px;font-weight:600;padding:3px 10px;border-radius:12px;}
+.rate-dir.up{background:var(--green-bg);color:var(--green);}
+.rate-dir.down{background:var(--red-bg);color:var(--red);}
+.rate-dir.flat{background:var(--surface2);color:var(--text3);}
+.bid-ask{display:flex;gap:10px;margin-top:12px;}
+.ba{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px;}
+.ba-lbl{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);}
+.ba-val{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;color:var(--text);margin-top:2px;}
+.version-log{margin-top:14px;}
+.vl-label{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+.vl-empty{font-size:12px;color:var(--text3);padding:4px 0;}
+.vl-table{width:100%;border-collapse:collapse;font-size:12px;}
+.vl-table th{padding:5px 8px;text-align:left;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);font-size:11px;letter-spacing:.4px;}
+.vl-table th.r{text-align:right;}
+.vl-table td{padding:6px 8px;border-bottom:1px solid var(--border);}
+.vl-table td.r{text-align:right;font-family:'IBM Plex Mono',monospace;}
+.vl-table tr:last-child td{border-bottom:none;}
+.vl-table tr:first-child td{font-weight:600;}
+.trend-up{color:var(--green);font-weight:700;}.trend-dn{color:var(--red);font-weight:700;}.trend-flat{color:var(--text3);}
+.suggestion{margin-top:10px;padding:10px 14px;border-radius:var(--rs);font-size:12.5px;line-height:1.6;display:none;}
+.suggestion.ok{background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green);}
+.suggestion.warn{background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber);}
+.suggestion.bad{background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.grid2i{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:660px){.grid2,.grid2i{grid-template-columns:1fr;}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;}
+.card-lbl{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;}
+.deal-toggle{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;margin-bottom:16px;}
+.dt{padding:9px 6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:transparent;color:var(--text3);transition:all .2s;text-align:center;line-height:1.3;}
+.dt:nth-child(2),.dt:nth-child(4){border-right:none;}
+.dt:nth-child(3),.dt:nth-child(4){border-bottom:none;}
+.dt.se.a{background:var(--red-bg);color:var(--red);}
+.dt.be.a{background:var(--green-bg);color:var(--green);}
+.dt.su.a{background:var(--green-bg);color:var(--green);}
+.dt.bu.a{background:var(--red-bg);color:var(--red);}
+.dt:not(.a):hover{background:var(--surface2);}
+.dt-sub{font-size:10px;font-weight:400;opacity:.75;display:block;margin-top:1px;}
+.flbl{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block;}
+.fi{width:100%;padding:9px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:15px;outline:none;transition:border-color .2s;}
+.fi:focus{border-color:var(--accent);background:#fff;}
+.fi::placeholder{color:var(--text3);}
+.fi-sel{font-family:'IBM Plex Sans',sans-serif;font-size:14px;}
+.fg{margin-bottom:12px;}
+.ccy{font-size:12px;font-weight:600;color:var(--accent);margin-left:5px;}
+.amt-words{font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;min-height:16px;}
+.pip-meter{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+.pip-nb{background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);padding:16px 20px;min-width:150px;}
+.pip-nb.stellar{background:var(--stellar-bg);border-color:var(--stellar-bd);}
+.pip-nb.ok{background:var(--green-bg);border-color:var(--green-bd);}
+.pip-nb.caution{background:var(--orange-bg);border-color:var(--orange-bd);}
+.pip-nb.warn{background:var(--amber-bg);border-color:var(--amber-bd);}
+.pip-nb.bad{background:var(--red-bg);border-color:var(--red-bd);}
+.pip-sl{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;}
+.pip-nb.stellar .pip-sl{color:var(--stellar);}
+.pip-nb.ok .pip-sl{color:var(--green);}
+.pip-nb.caution .pip-sl{color:var(--orange);}
+.pip-nb.warn .pip-sl{color:var(--amber);}
+.pip-nb.bad .pip-sl{color:var(--red);}
+.pip-big{font-family:'IBM Plex Mono',monospace;font-size:36px;font-weight:500;line-height:1;color:var(--text2);}
+.pip-nb.stellar .pip-big{color:var(--stellar);}
+.pip-nb.ok .pip-big{color:var(--green);}
+.pip-nb.caution .pip-big{color:var(--orange);}
+.pip-nb.warn .pip-big{color:var(--amber);}
+.pip-nb.bad .pip-big{color:var(--red);}
+.vb{flex:1;min-width:200px;border-radius:var(--rs);padding:16px 18px;border:1.5px solid var(--border);background:var(--surface2);display:flex;flex-direction:column;justify-content:center;}
+.vb.stellar{background:var(--stellar-bg);border-color:var(--stellar-bd);}
+.vb.ok{background:var(--green-bg);border-color:var(--green-bd);}
+.vb.caution{background:var(--orange-bg);border-color:var(--orange-bd);}
+.vb.warn{background:var(--amber-bg);border-color:var(--amber-bd);}
+.vb.bad{background:var(--red-bg);border-color:var(--red-bd);}
+.vi{font-size:22px;margin-bottom:4px;}
+.vt{font-size:15px;font-weight:700;color:var(--text2);}
+.vb.stellar .vt{color:var(--stellar);}
+.vb.ok .vt{color:var(--green);}
+.vb.caution .vt{color:var(--orange);}
+.vb.warn .vt{color:var(--amber);}
+.vb.bad .vt{color:var(--red);}
+.vd{font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5;}
+.pip-scale{margin:14px 0 4px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);}
+.pip-scale-title{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+.pip-scale-track{position:relative;height:10px;border-radius:5px;background:linear-gradient(to right,#16a34a 0%,#16a34a 31%,#0d7a4e 31%,#0d7a4e 56%,#c45000 56%,#c45000 69%,#92600a 69%,#92600a 81%,#b91c3c 81%,#b91c3c 100%);margin-bottom:6px;}
+.pip-scale-marker{position:absolute;top:-4px;width:3px;height:18px;background:var(--text);border-radius:2px;transform:translateX(-50%);transition:left .4s;display:none;}
+.pip-scale-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
+.pip-scale-zones{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.sz{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;}
+.sz-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.atbl{width:100%;border-collapse:collapse;margin-top:2px;}
+.atbl tr{border-bottom:1px solid var(--border);}
+.atbl tr:last-child{border-bottom:none;}
+.atbl td{padding:7px 0;font-size:13px;}
+.atbl td:first-child{color:var(--text3);font-weight:500;}
+.atbl td:last-child{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:500;}
+.atbl tr.total td{font-weight:700;padding-top:10px;}
+.atbl tr.total td:last-child{color:var(--accent);font-size:15px;}
+.atbl tr.dok td:last-child{color:var(--green);}
+.atbl tr.dng td:last-child{color:var(--red);}
+.cbtn{width:100%;padding:13px;margin-top:16px;background:var(--accent);color:#fff;border:none;border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;box-shadow:0 2px 8px rgba(37,99,235,.25);}
+.cbtn:hover{background:#1d4ed8;}
+.cbtn:disabled{background:#c8d2de;color:#8a9eb0;cursor:not-allowed;box-shadow:none;}
+#emailPanel{display:none;margin-bottom:14px;}
+.ewrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;}
+.etb{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;}
+.etbt{font-size:13px;font-weight:600;color:var(--text2);}
+.cpbtn{background:var(--accent);color:#fff;border:none;padding:7px 16px;border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
+.cpbtn:hover{background:#1d4ed8;}.cpbtn.copied{background:var(--green);}
+.esub{padding:10px 18px;background:var(--accent-bg);border-bottom:1px solid var(--accent-bd);font-size:12.5px;color:var(--text2);}
+.esub b{color:var(--accent);}
+.ebody{padding:20px 22px;font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.85;color:var(--text);white-space:pre-wrap;background:#fff;}
+.ndbtn{width:100%;padding:11px;margin-top:12px;background:transparent;color:var(--text2);border:1.5px solid var(--border);border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;}
+.ndbtn:hover{background:var(--surface2);}
+
+/* HISTORY TABLE */
+.hcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;margin-bottom:14px;}
+.hhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.hacts{display:flex;gap:8px;flex-wrap:wrap;}
+.bexp{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);padding:6px 14px;border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+.bexp:hover{background:#d1f5e4;}
+.bclr{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);padding:6px 14px;border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+.bclr:hover{background:#ffe0e6;}
+.hmeta{font-size:12px;color:var(--text3);margin-bottom:10px;}
+.hemp{font-size:13px;color:var(--text3);padding:8px 0;}
+.htw{overflow-x:auto;}
+.htbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.htbl thead tr{background:var(--surface2);border-bottom:1.5px solid var(--border);}
+.htbl th{padding:8px 10px;text-align:left;font-weight:600;color:var(--text3);letter-spacing:.4px;white-space:nowrap;}
+.htbl th.r{text-align:right;}
+.htbl tbody tr{border-bottom:1px solid var(--border);}
+.htbl tbody tr:last-child{border-bottom:none;}
+.htbl tbody tr:hover{background:var(--surface2);}
+.htbl td{padding:8px 10px;}
+.htbl td.r{text-align:right;font-family:'IBM Plex Mono',monospace;}
+.htbl td.dim{color:var(--text3);}
+.ttag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;}
+.ttag.sell{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.ttag.buy{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.ptag{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:700;font-size:12px;font-family:'IBM Plex Mono',monospace;}
+.ptag.stellar{background:var(--stellar-bg);color:var(--stellar);border:1px solid var(--stellar-bd);}
+.ptag.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.ptag.caution{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-bd);}
+.ptag.warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);}
+.ptag.bad{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.act-btn{padding:3px 10px;border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;margin-right:4px;}
+.act-btn:hover{background:var(--surface2);}
+.act-btn.edit-btn{color:var(--accent);border-color:var(--accent-bd);background:var(--accent-bg);}
+.act-btn.edit-btn:hover{background:#dbeafe;}
+.act-btn.del-btn{color:var(--red);border-color:var(--red-bd);background:var(--red-bg);}
+.act-btn.del-btn:hover{background:#ffe0e6;}
+
+/* HELP MODAL */
+.help-btn{display:flex;align-items:center;gap:6px;background:var(--surface);border:1.5px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:20px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
+.help-btn:hover{background:var(--surface2);}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.5);z-index:1000;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:14px;box-shadow:var(--shadow-lg);width:100%;max-width:760px;overflow:hidden;margin:auto;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.modal-header-title{font-size:17px;font-weight:700;color:var(--text);}
+.modal-close{background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;line-height:1;padding:4px 8px;border-radius:6px;}
+.modal-close:hover{background:var(--border);color:var(--text);}
+.modal-body{padding:24px;max-height:75vh;overflow-y:auto;}
+.help-tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);}
+.htab{padding:8px 16px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text3);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;}
+.htab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.help-section{display:none;}.help-section.active{display:block;}
+.help-h1{font-size:15px;font-weight:700;color:var(--text);margin:0 0 6px;}
+.help-h2{font-size:13px;font-weight:700;color:var(--text2);margin:16px 0 6px;}
+.help-p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:10px;}
+.help-step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start;}
+.step-num{min-width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.step-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.step-desc{font-size:12.5px;color:var(--text2);line-height:1.6;}
+.help-table{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 14px;}
+.help-table th{padding:7px 10px;background:var(--surface2);font-weight:600;color:var(--text3);text-align:left;border-bottom:1.5px solid var(--border);}
+.help-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text2);}
+.help-table tr:last-child td{border-bottom:none;}
+.help-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:4px;}
+.hb-stellar{background:var(--stellar-bg);color:var(--stellar);border:1px solid var(--stellar-bd);}
+.hb-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.hb-caut{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-bd);}
+.hb-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);}
+.hb-bad{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.tip-box{background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--rs);padding:12px 14px;margin:10px 0;font-size:12.5px;color:var(--text2);line-height:1.6;}
+.tip-box b{color:var(--accent);}
+
+/* EDIT MODAL */
+.edit-modal{background:var(--surface);border-radius:14px;box-shadow:var(--shadow-lg);width:100%;max-width:540px;overflow:hidden;margin:auto;}
+.em-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.em-title{font-size:16px;font-weight:700;color:var(--text);}
+.em-body{padding:22px;max-height:80vh;overflow-y:auto;}
+.em-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:500px){.em-grid{grid-template-columns:1fr;}}
+.em-fg{margin-bottom:0;}
+.em-lbl{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block;}
+.em-fi{width:100%;padding:8px 11px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:14px;outline:none;transition:border-color .2s;}
+.em-fi:focus{border-color:var(--accent);background:#fff;}
+.em-fi-sel{font-family:'IBM Plex Sans',sans-serif;font-size:13px;}
+.em-footer{display:flex;gap:10px;padding:16px 22px;border-top:1px solid var(--border);background:var(--surface2);}
+.em-save{flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.em-save:hover{background:#1d4ed8;}
+.em-cancel{padding:10px 18px;background:transparent;color:var(--text2);border:1.5px solid var(--border);border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.em-cancel:hover{background:var(--surface2);}
+
+/* ══════════ DASHBOARD STYLES ══════════ */
+.dash-section-hdr{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;margin-top:28px;}
+.dash-section-hdr:first-child{margin-top:0;}
+.dash-section-title{font-family:'DM Serif Display',serif;font-size:19px;color:var(--text);letter-spacing:-.2px;}
+.dash-section-sub{font-size:12px;color:var(--text4,#9ca3af);}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:24px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.05);position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;}
+.kpi:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.kblue::before{background:#3b82f6;}.kpi.kgreen::before{background:#059669;}.kpi.kred::before{background:#dc2626;}.kpi.kamber::before{background:#d97706;}.kpi.korange::before{background:#ea580c;}.kpi.kteal::before{background:#0d9488;}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;}
+.kpi-val{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:500;line-height:1;margin-bottom:3px;}
+.kpi-val.kblue{color:#3b82f6;}.kpi-val.kgreen{color:#059669;}.kpi-val.kred{color:#dc2626;}.kpi-val.kamber{color:#d97706;}.kpi-val.korange{color:#ea580c;}.kpi-val.kteal{color:#0d9488;}
+.kpi-sub{font-size:11px;color:#9ca3af;}
+.summary-bar{background:var(--text);border-radius:var(--r);padding:16px 22px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;margin-bottom:24px;}
+.sb-item{text-align:center;}
+.sb-label{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px;}
+.sb-val{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;color:#fff;}
+.sb-div{width:1px;background:rgba(255,255,255,.15);align-self:stretch;}
+.chart-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.chart-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
+@media(max-width:900px){.chart-grid-2,.chart-grid-3{grid-template-columns:1fr;}}
+@media(min-width:901px) and (max-width:1200px){.chart-grid-3{grid-template-columns:1fr 1fr;}}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 1px 2px rgba(0,0,0,.05);padding:18px 20px;}
+.chart-card.full{grid-column:1/-1;}
+.chart-title{font-size:13px;font-weight:600;color:var(--text2);}
+.chart-subtitle{font-size:11px;color:#9ca3af;margin-top:1px;}
+.chart-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.chart-wrap{position:relative;}
+.chart-wrap.h180{height:180px;}.chart-wrap.h200{height:200px;}.chart-wrap.h240{height:240px;}.chart-wrap.h280{height:280px;}
+.pip-legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.pl-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);}
+.pl-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.mini-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px;background:var(--surface);}
+.ms-item{padding:14px 16px;text-align:center;border-right:1px solid var(--border);}
+.ms-item:last-child{border-right:none;}
+.ms-label{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;}
+.ms-val{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500;}
+.ms-pct{font-size:11px;color:#9ca3af;margin-top:2px;}
+@media(max-width:700px){.mini-stats{grid-template-columns:1fr 1fr;}.ms-item{border-bottom:1px solid var(--border);}}
+.dash-no-data{text-align:center;padding:60px 20px;color:var(--text3);}
+.dash-no-data-icon{font-size:40px;margin-bottom:12px;}
+.dash-no-data-title{font-size:18px;font-weight:600;color:var(--text2);margin-bottom:8px;}
+.dash-no-data-sub{font-size:13px;line-height:1.6;max-width:400px;margin:0 auto;}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.fselect,.fsearch{padding:7px 10px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface);color:var(--text2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;}
+.fselect:focus,.fsearch:focus{border-color:var(--accent);}
+.fsearch{min-width:200px;}
+.filter-count{font-size:12px;color:var(--text3);margin-left:auto;}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 1px 2px rgba(0,0,0,.05);overflow:hidden;margin-bottom:14px;}
+.table-card-hdr{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.table-card-title{font-size:13px;font-weight:600;color:var(--text2);}
+.twrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+thead tr{background:var(--surface2);}
+th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9ca3af;border-bottom:1.5px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+th:hover{color:var(--text2);}
+th.r{text-align:right;}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+td.r{text-align:right;font-family:'IBM Plex Mono',monospace;}
+td.dim{color:var(--text3);font-size:12px;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;}
+.badge.sell{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.badge.buy{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.badge.stellar{background:var(--stellar-bg);color:var(--stellar);border:1px solid var(--stellar-bd);}
+.badge.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.badge.caution{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-bd);}
+.badge.warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);}
+.badge.bad{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.tbl-empty{padding:40px;text-align:center;color:#9ca3af;font-size:13px;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- ══ TOP NAV ══ -->
+<div class="topnav">
+  <div class="brand">
+    <div class="brand-mark">GRF</div>
+    <div>
+      <div class="brand-name">GRF <span>Treasury FX</span></div>
+      <div class="brand-sub">Treasury &amp; Payments Operations</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('deal')">&#128179; Deal Entry</button>
+    <button class="nav-tab" onclick="switchTab('dashboard')">&#128200; Dashboard</button>
+  </div>
+  <div class="nav-right">
+    <button class="help-btn" onclick="openHelp()">&#10067; Help</button>
+    <button class="help-btn" onclick="openConfig()" style="padding:6px 12px" title="Database Settings">&#9881;</button>
+    <div class="pill" id="dbPill" style="background:#fff0f3;border-color:#f4a8b8;color:#b91c3c;display:none">
+      <span id="dbPillTxt">&#9679; DB Offline</span>
+    </div>
+    <div class="pill" id="statusPill"><div class="dot"></div> <span id="pillTxt">System Ready</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE 1: DEAL ENTRY
+══════════════════════════════════════ -->
+<div class="page active" id="pageDeal">
+
+<!-- PAIR TABS -->
+<div class="pair-tabs">
+  <button class="pair-tab active" id="tabEURUSD" onclick="setPair('EURUSD')">EUR / USD</button>
+  <button class="pair-tab"        id="tabUSDZAR" onclick="setPair('USDZAR')">USD / ZAR</button>
+</div>
+
+<!-- RATE BANNER -->
+<div class="rate-banner">
+  <div class="rbl" id="rateLabel">EUR/USD Rate (FXStreet)<span>Paste rate &rarr; click Add to log &amp; track versions</span></div>
+  <div class="rate-iw"><input type="number" id="manualRateInput" step="0.00001" placeholder="e.g. 1.08520"></div>
+  <button class="set-btn" onclick="applyManualRate()">Add Rate &rarr;</button>
+</div>
+
+<!-- RATE TRACKER -->
+<div class="tracker-card">
+  <div class="tracker-hdr">
+    <div class="tracker-title" id="trackerTitle">GRF Treasury FX &mdash; Rate Tracker (EUR/USD)</div>
+    <button onclick="clearRates()" style="font-size:11px;color:var(--text3);background:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;">Clear Rates</button>
+  </div>
+  <div class="tracker-current">
+    <div class="rate-big" id="liveRate">&mdash;</div>
+    <div class="rate-dir flat" id="rateDir">No rate yet</div>
+  </div>
+  <div class="bid-ask">
+    <div class="ba"><div class="ba-lbl">Bid (Sell)</div><div class="ba-val" id="mBid">&mdash;</div></div>
+    <div class="ba"><div class="ba-lbl">Ask (Buy)</div><div class="ba-val" id="mAsk">&mdash;</div></div>
+    <div class="ba"><div class="ba-lbl">Session High</div><div class="ba-val" id="mHigh">&mdash;</div></div>
+    <div class="ba"><div class="ba-lbl">Session Low</div><div class="ba-val" id="mLow">&mdash;</div></div>
+  </div>
+  <div class="version-log">
+    <div class="vl-label">Rate History (this session)</div>
+    <div id="versionLogWrap"><div class="vl-empty">No rates added yet. Paste rates from FXStreet above as you monitor the market.</div></div>
+  </div>
+  <div class="suggestion" id="trendSuggestion"></div>
+</div>
+
+<!-- DEAL SETUP + PIP ANALYSIS -->
+<div class="grid2">
+  <div class="card">
+    <div class="card-lbl">Deal Setup</div>
+    <div class="deal-toggle" id="dealToggle">
+      <button class="dt se" id="btnSE" onclick="setDealType('SELL_EUR')">&#9660; Sell EUR<span class="dt-sub">Give EUR &middot; Get USD</span></button>
+      <button class="dt be" id="btnBE" onclick="setDealType('BUY_EUR')">&#9650; Buy EUR<span class="dt-sub">Give USD &middot; Get EUR</span></button>
+      <button class="dt su" id="btnSU" onclick="setDealType('SELL_USD')">&#9660; Sell USD<span class="dt-sub">Give USD &middot; Get EUR</span></button>
+      <button class="dt bu" id="btnBU" onclick="setDealType('BUY_USD')">&#9650; Buy USD<span class="dt-sub">Give EUR &middot; Get USD</span></button>
+    </div>
+    <div class="grid2i">
+      <div class="fg"><label class="flbl">Bank Deal Rate</label><input class="fi" type="number" id="bankRate" step="0.00001" placeholder="1.08250" oninput="calculate()"></div>
+      <div class="fg"><label class="flbl">Amount <span class="ccy" id="amtCcy">(EUR)</span></label><input class="fi" type="number" id="amount" value="600000" oninput="calculate()"><div class="amt-words" id="amtWords"></div></div>
+      <div class="fg"><label class="flbl">Deal No.</label><input class="fi" type="text" id="dealNo" placeholder="13856"></div>
+      <div class="fg"><label class="flbl">Value Date</label><input class="fi" type="date" id="valueDate"></div>
+    </div>
+    <div class="fg"><label class="flbl">Given By</label>
+      <select class="fi fi-sel" id="givenBy">
+        <option value="">-- Select --</option>
+        <option value="Ms. Mariam">Ms. Mariam</option>
+        <option value="Mr. Assan">Mr. Assan</option>
+        <option value="Mr. Farkhan">Mr. Farkhan</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-lbl">Pip Analysis &mdash; Bank vs Market</div>
+    <div class="pip-meter">
+      <div class="pip-nb" id="pipBlock"><div class="pip-sl">Margin in Pips</div><div class="pip-big" id="pipVal">&mdash;</div></div>
+      <div class="vb" id="vBlock"><div class="vi" id="vIcon">&#x23F3;</div><div class="vt" id="vTitle">Awaiting input</div><div class="vd" id="vDesc">Enter bank rate and amount to see analysis.</div></div>
+    </div>
+    <div class="pip-scale" id="pipScaleWrap" style="display:none">
+      <div class="pip-scale-title">Bank Margin Position on Scale</div>
+      <div class="pip-scale-track"><div class="pip-scale-marker" id="pipMarker"></div></div>
+      <div class="pip-scale-labels"><span>0</span><span>2</span><span>4</span><span>5</span><span>7</span><span>8</span><span>10+</span></div>
+      <div class="pip-scale-zones">
+        <div class="sz"><div class="sz-dot" style="background:#16a34a"></div><span style="color:#16a34a">Impressive (&lt;5)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#0d7a4e"></div><span style="color:#0d7a4e">Satisfactory (5&ndash;7)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#c45000"></div><span style="color:#c45000">Concerning (7&ndash;8)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#92600a"></div><span style="color:#92600a">High (8&ndash;9)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#b91c3c"></div><span style="color:#b91c3c">Red Flag (&gt;9)</span></div>
+      </div>
+    </div>
+    <div id="amtSection" style="display:none">
+      <table class="atbl">
+        <tr><td id="lblGive">You Give</td><td id="valGive">&mdash;</td></tr>
+        <tr><td>Market Spot Rate</td><td id="valSpot">&mdash;</td></tr>
+        <tr><td>Bank Deal Rate</td><td id="valBank">&mdash;</td></tr>
+        <tr class="total"><td id="lblGet">You Receive (Bank)</td><td id="valGet">&mdash;</td></tr>
+        <tr><td>You Would Receive (Market)</td><td id="valMkt">&mdash;</td></tr>
+        <tr id="diffRow"><td id="diffLbl">Difference</td><td id="diffVal">&mdash;</td></tr>
+        <tr><td>Amount in Words</td><td id="valWords" style="font-size:12px;font-style:italic;color:var(--text2)">&mdash;</td></tr>
+      </table>
+    </div>
+    <button class="cbtn" id="confirmBtn" onclick="confirmDeal()" disabled>Confirm Deal &amp; Generate Email</button>
+  </div>
+</div>
+
+<!-- EMAIL PANEL -->
+<div id="emailPanel">
+  <div class="ewrap">
+    <div class="etb">
+      <div class="etbt">&#128231; Deal Confirmation Email &mdash; Ready to Send</div>
+      <button class="cpbtn" id="copyBtn" onclick="copyEmail()">Copy to Clipboard</button>
+    </div>
+    <div class="esub"><b>Subject: </b><span id="emailSubject"></span></div>
+    <div class="ebody" id="emailBody"></div>
+  </div>
+  <button class="ndbtn" onclick="resetDeal()">&#8635; &nbsp;Start New Deal</button>
+</div>
+
+<!-- HISTORY -->
+<div class="hcard">
+  <div class="hhdr">
+    <div class="card-lbl" style="margin-bottom:0">Deal History &mdash; Saved Across Sessions</div>
+    <div class="hacts">
+      <button class="bexp" onclick="exportCSV()">&#8595; Export CSV</button>
+      <button class="bclr" onclick="clearHistory()">&#10005; Clear All</button>
+    </div>
+  </div>
+  <div class="hmeta" id="histMeta"></div>
+  <div id="histList"><div class="hemp">No deals confirmed yet. Deals are saved automatically.</div></div>
+</div>
+
+</div><!-- /pageDeal -->
+
+<!-- ══════════════════════════════════════
+     PAGE 2: DASHBOARD
+══════════════════════════════════════ -->
+<div class="page" id="pageDashboard">
+  <div id="dashNoData" class="dash-no-data">
+    <div class="dash-no-data-icon">&#128202;</div>
+    <div class="dash-no-data-title">No Deal Data Yet</div>
+    <div class="dash-no-data-sub">Confirm your first deal in the <b>Deal Entry</b> tab to start seeing analytics here. The dashboard updates automatically every time you switch to this tab.</div>
+  </div>
+  <div id="dashContent" style="display:none">
+    <div class="summary-bar" id="summaryBar"></div>
+    <div class="dash-section-hdr"><div class="dash-section-title">Key Metrics</div><div class="dash-section-sub" id="dateRangeLabel"></div></div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="dash-section-hdr"><div class="dash-section-title">Pip Margin Breakdown</div><div class="dash-section-sub">Bank margin vs your 5-tier policy scale</div></div>
+    <div class="mini-stats" id="miniStats"></div>
+    <div class="chart-grid-2">
+      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Bank Rate Over Time</div><div class="chart-subtitle">Chronological rate history</div></div></div><div class="chart-wrap h240"><canvas id="chartRate"></canvas></div></div>
+      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Pip Margin Per Deal</div><div class="chart-subtitle">Colour-coded by verdict tier</div></div></div><div class="chart-wrap h240"><canvas id="chartPips"></canvas></div><div class="pip-legend"><div class="pl-item"><div class="pl-dot" style="background:#16a34a"></div>Impressive (&lt;5)</div><div class="pl-item"><div class="pl-dot" style="background:#059669"></div>Satisfactory (5-7)</div><div class="pl-item"><div class="pl-dot" style="background:#ea580c"></div>Concerning (7-8)</div><div class="pl-item"><div class="pl-dot" style="background:#d97706"></div>High (8-9)</div><div class="pl-item"><div class="pl-dot" style="background:#dc2626"></div>Red Flag (&gt;9)</div></div></div>
+    </div>
+    <div class="chart-grid-3">
+      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Deal Type Split</div><div class="chart-subtitle">By count</div></div></div><div class="chart-wrap h180"><canvas id="chartType"></canvas></div></div>
+      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Pip Verdict Distribution</div><div class="chart-subtitle">Quality of rates achieved</div></div></div><div class="chart-wrap h180"><canvas id="chartVerdict"></canvas></div></div>
+      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Given By</div><div class="chart-subtitle">Deals per counterpart</div></div></div><div class="chart-wrap h180"><canvas id="chartGivenBy"></canvas></div></div>
+    </div>
+    <div class="chart-card full" style="margin-bottom:14px"><div class="chart-hdr"><div><div class="chart-title">EUR Volume &amp; Bank Rate (Dual Axis)</div><div class="chart-subtitle">Volume bars (left) &middot; Bank rate line (right)</div></div></div><div class="chart-wrap h280"><canvas id="chartVolRate"></canvas></div></div>
+    <div class="chart-card full" style="margin-bottom:24px"><div class="chart-hdr"><div><div class="chart-title">Running Average Pip Margin</div><div class="chart-subtitle">Trend over time with policy reference lines</div></div></div><div class="chart-wrap h200"><canvas id="chartAvgPip"></canvas></div></div>
+    <div class="dash-section-hdr"><div class="dash-section-title">All Deals</div></div>
+    <div class="filter-row">
+      <span style="font-size:12px;font-weight:600;color:#9ca3af">Filter:</span>
+      <select class="fselect" id="ftType" onchange="renderDashTable()"><option value="">All Deal Types</option><option>SELL EUR / BUY USD</option><option>BUY EUR / SELL USD</option><option>SELL USD / BUY EUR</option><option>BUY USD / SELL EUR</option><option>SELL USD / BUY ZAR</option><option>BUY USD / SELL ZAR</option></select>
+      <select class="fselect" id="ftVerdict" onchange="renderDashTable()"><option value="">All Verdicts</option><option value="stellar">Impressive</option><option value="ok">Satisfactory</option><option value="caution">Concerning</option><option value="warn">High Margin</option><option value="bad">Red Flag</option></select>
+      <select class="fselect" id="ftPair" onchange="renderDashTable()"><option value="">All Pairs</option><option value="EURUSD">EUR/USD</option><option value="USDZAR">USD/ZAR</option></select>
+      <input class="fsearch" type="text" id="fsSearch" placeholder="Search deal no, given by..." oninput="renderDashTable()">
+      <span class="filter-count" id="filterCount"></span>
+    </div>
+    <div class="table-card">
+      <div class="table-card-hdr"><div class="table-card-title">Deal Register</div><div style="font-size:11px;color:#9ca3af">Click column headers to sort</div></div>
+      <div class="twrap"><table><thead><tr>
+        <th onclick="sortDashTable('date')">#</th>
+        <th onclick="sortDashTable('date')">Date &amp; Time</th>
+        <th>Pair</th>
+        <th onclick="sortDashTable('typeLabel')">Deal Type</th>
+        <th class="r" onclick="sortDashTable('bankRate')">Bank Rate</th>
+        <th class="r" onclick="sortDashTable('spotRate')">Spot</th>
+        <th class="r" onclick="sortDashTable('amtCcy1')">CCY1 Amt</th>
+        <th class="r" onclick="sortDashTable('amtCcy2')">CCY2 Amt</th>
+        <th class="r" onclick="sortDashTable('pips')">Pips</th>
+        <th onclick="sortDashTable('pipCls')">Verdict</th>
+        <th onclick="sortDashTable('dealNo')">Deal No.</th>
+        <th onclick="sortDashTable('valueDate')">Value Date</th>
+        <th onclick="sortDashTable('givenBy')">Given By</th>
+        <th>Actions</th>
+      </tr></thead><tbody id="dashTableBody"></tbody></table></div>
+      <div style="padding:10px 16px;font-size:11px;color:#9ca3af;border-top:1px solid var(--border)" id="dashTableFooter"></div>
+    </div>
+  </div>
+</div><!-- /pageDashboard -->
+
+<!-- ══ SUPABASE CONFIG MODAL ══ -->
+<div class="modal-overlay" id="configModal" style="z-index:500">
+  <div class="edit-modal" style="max-width:580px">
+    <div class="em-hdr" style="background:var(--accent);color:#fff">
+      <div class="em-title" style="color:#fff">&#9881; Supabase Database Configuration</div>
+    </div>
+    <div class="em-body">
+      <div style="background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--text2);line-height:1.6">
+        <b style="color:var(--accent)">First-time setup:</b> Enter your Supabase project URL and anon key below. These are saved in your browser and never leave your device. Find them at <b>supabase.com → Settings → API</b>.
+      </div>
+      <div class="em-fg" style="margin-bottom:14px">
+        <label class="em-lbl">Supabase Project URL</label>
+        <input class="em-fi" type="text" id="cfg-url" placeholder="https://your-project-id.supabase.co" style="font-size:13px">
+      </div>
+      <div class="em-fg" style="margin-bottom:14px">
+        <label class="em-lbl">Supabase Anon / Public Key</label>
+        <input class="em-fi" type="text" id="cfg-key" placeholder="eyJhbGci... or sb_publishable_..." style="font-size:13px">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Use the Publishable key (new format: sb_publishable_...) or Legacy anon key (eyJ...). Never use the Secret key.</div>
+      </div>
+      <div class="em-fg" style="margin-bottom:0">
+        <label class="em-lbl">App Access Password (optional)</label>
+        <input class="em-fi" type="password" id="cfg-pass" placeholder="Leave blank to disable password protection" style="font-size:13px">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">If set, users must enter this password to open the app. Stored locally per device.</div>
+      </div>
+      <div style="margin-top:14px;padding:10px 12px;background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--rs);font-size:12px;color:var(--green);display:none" id="cfg-ok-msg">
+        &#10003; Configuration saved. Testing connection...
+      </div>
+      <div style="margin-top:10px;padding:10px 12px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--rs);font-size:12px;color:var(--red);display:none" id="cfg-err-msg">
+        &#10007; <span id="cfg-err-txt">Could not connect. Check URL and key.</span>
+      </div>
+    </div>
+    <div class="em-footer">
+      <button class="em-save" onclick="saveConfig()">Save &amp; Connect</button>
+      <button class="em-cancel" onclick="skipConfig()">Skip (use localStorage only)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HELP MODAL ══ -->
+<div class="modal-overlay" id="helpModal" onclick="closeHelpOutside(event)">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-header-title">&#10067; GRF Treasury FX &mdash; Help &amp; User Guide</div><button class="modal-close" onclick="closeHelp()">&times;</button></div>
+    <div class="modal-body">
+      <div class="help-tabs">
+        <button class="htab active" onclick="showHelpTab('overview',this)">Overview</button>
+        <button class="htab" onclick="showHelpTab('howto',this)">How To Use</button>
+        <button class="htab" onclick="showHelpTab('pips',this)">Pip Scale</button>
+        <button class="htab" onclick="showHelpTab('deals',this)">Deal Types</button>
+        <button class="htab" onclick="showHelpTab('tracker',this)">Rate Tracker</button>
+        <button class="htab" onclick="showHelpTab('history',this)">History &amp; Data</button>
+      </div>
+      <div class="help-section active" id="hs-overview"><div class="help-h1">What is this tool?</div><div class="help-p">The GRF Treasury FX system is a unified treasury tool for monitoring EUR/USD and USD/ZAR exchange rates, evaluating bank deal rates against market rates, measuring pip margins, generating deal confirmation emails, and viewing full analytics &mdash; all in one file.</div><div class="help-h2">Two Tabs</div><div class="help-p"><b>Deal Entry:</b> Paste rates, enter bank quote, check pip margin, confirm deal &amp; copy email.<br><b>Dashboard:</b> Full analytics, charts, and deal history with edit &amp; delete.</div><div class="tip-box"><b>Tip:</b> Keep FXStreet open in one browser tab and this tool in another. All data is saved automatically in your browser.</div></div>
+      <div class="help-section" id="hs-howto"><div class="help-h1">Step-by-Step Guide</div><div class="help-step"><div class="step-num">1</div><div><div class="step-title">Select Currency Pair</div><div class="step-desc">Choose EUR/USD or USD/ZAR using the pair tabs at the top of Deal Entry.</div></div></div><div class="help-step"><div class="step-num">2</div><div><div class="step-title">Add Market Rate</div><div class="step-desc">Copy the current rate from FXStreet, paste it into the rate field, click <b>Add Rate</b>. Repeat as the rate moves to build a version history.</div></div></div><div class="help-step"><div class="step-num">3</div><div><div class="step-title">Select Deal Type &amp; Enter Details</div><div class="step-desc">Choose Sell EUR / Buy EUR / Sell USD / Buy USD. Enter the bank deal rate, amount, deal number, value date, and who gave the rate.</div></div></div><div class="help-step"><div class="step-num">4</div><div><div class="step-title">Read Pip Analysis</div><div class="step-desc">The pip margin, colour-coded verdict, and scale marker update instantly. See the Pip Scale tab for what each zone means.</div></div></div><div class="help-step"><div class="step-num">5</div><div><div class="step-title">Confirm &amp; Copy Email</div><div class="step-desc">Click <b>Confirm Deal</b> to generate the email. Click <b>Copy to Clipboard</b> then paste into Outlook.</div></div></div><div class="help-step"><div class="step-num">6</div><div><div class="step-title">View Analytics</div><div class="step-desc">Switch to the <b>Dashboard</b> tab to see charts, KPIs, and the full deal table. Edit or delete any deal directly from the table.</div></div></div></div>
+      <div class="help-section" id="hs-pips"><div class="help-h1">Pip Margin Scale</div><div class="help-p">Pip margin = |bank rate &minus; market spot rate| &times; 10,000. Lower is always better for the company.</div><table class="help-table"><thead><tr><th>Zone</th><th>Range</th><th>Meaning</th><th>Action</th></tr></thead><tbody><tr><td><span class="help-badge hb-stellar">&#11088; Impressive</span></td><td>0&ndash;4 pips</td><td>Very competitive rate</td><td>Confirm immediately</td></tr><tr><td><span class="help-badge hb-ok">&#9989; Satisfactory</span></td><td>5&ndash;7 pips</td><td>Within acceptable range</td><td>Safe to confirm</td></tr><tr><td><span class="help-badge hb-caut">&#9888; Concerning</span></td><td>7&ndash;8 pips</td><td>Above policy limit</td><td>Ask bank to tighten</td></tr><tr><td><span class="help-badge hb-warn">&#128312; High Margin</span></td><td>8&ndash;9 pips</td><td>Well above limit</td><td>Negotiate firmly</td></tr><tr><td><span class="help-badge hb-bad">&#10060; Red Flag</span></td><td>&gt;9 pips</td><td>Unacceptable</td><td>Reject &amp; request new quote</td></tr></tbody></table><div class="tip-box"><b>Policy:</b> Maximum allowed bank margin is 7 pips. Below 5 pips is a win for the company.</div></div>
+      <div class="help-section" id="hs-deals"><div class="help-h1">Deal Types</div><table class="help-table"><thead><tr><th>Type</th><th>You Give</th><th>You Get</th><th>Want Rate</th></tr></thead><tbody><tr><td><b>Sell EUR</b></td><td>EUR</td><td>USD</td><td>HIGH (more USD per EUR)</td></tr><tr><td><b>Buy EUR</b></td><td>USD</td><td>EUR</td><td>LOW (fewer USD per EUR)</td></tr><tr><td><b>Sell USD</b></td><td>USD</td><td>EUR</td><td>LOW (same as Buy EUR)</td></tr><tr><td><b>Buy USD</b></td><td>EUR</td><td>USD</td><td>HIGH (same as Sell EUR)</td></tr></tbody></table></div>
+      <div class="help-section" id="hs-tracker"><div class="help-h1">Rate Version Tracker</div><div class="help-p">Each time you paste a rate and click Add Rate, it is logged with a timestamp. After two or more entries, the system analyses the trend and gives a plain-English suggestion based on your deal type &mdash; telling you whether the rate movement is working for or against you.</div><div class="tip-box"><b>Session High/Low</b> shows the best and worst rate you have seen this session, so you can judge if the current rate is near the top or bottom of today's range.</div></div>
+      <div class="help-section" id="hs-history"><div class="help-h1">History, Edit &amp; Delete</div><div class="help-p">Every confirmed deal is automatically saved to your browser's local storage and persists across sessions. From the <b>Dashboard</b> tab you can:</div><div class="help-step"><div class="step-num">&#9998;</div><div><div class="step-title">Edit a Deal</div><div class="step-desc">Click the blue <b>Edit</b> button on any row. A modal opens with all deal fields pre-filled. Change what you need and click Save.</div></div></div><div class="help-step"><div class="step-num">&#128465;</div><div><div class="step-title">Delete a Deal</div><div class="step-desc">Click the red <b>Delete</b> button on any row. You will be asked to confirm before the record is permanently removed.</div></div></div><div class="help-p" style="margin-top:8px">You can also <b>Export CSV</b> from the Deal Entry tab to download all data, or <b>Clear All</b> to wipe history.</div><div class="tip-box"><b>Note:</b> Clearing your browser cookies or site data will erase history. Export CSV regularly as a backup.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EDIT MODAL ══ -->
+<div class="modal-overlay" id="editModal" onclick="closeEditOutside(event)">
+  <div class="edit-modal">
+    <div class="em-hdr"><div class="em-title">&#9998; Edit Deal</div><button class="modal-close" onclick="closeEditModal()">&times;</button></div>
+    <div class="em-body">
+      <input type="hidden" id="em-id">
+      <div class="em-grid">
+        <div class="em-fg"><label class="em-lbl">Deal Type</label>
+          <select class="em-fi em-fi-sel" id="em-type">
+            <option value="SELL_EUR">SELL EUR / BUY USD</option>
+            <option value="BUY_EUR">BUY EUR / SELL USD</option>
+            <option value="SELL_USD">SELL USD / BUY EUR</option>
+            <option value="BUY_USD">BUY USD / SELL EUR</option>
+            <option value="SELL_USD_ZAR">SELL USD / BUY ZAR</option>
+            <option value="BUY_USD_ZAR">BUY USD / SELL ZAR</option>
+            <option value="SELL_ZAR">SELL ZAR / BUY USD</option>
+            <option value="BUY_ZAR">BUY ZAR / SELL USD</option>
+          </select>
+        </div>
+        <div class="em-fg"><label class="em-lbl">Pair</label>
+          <select class="em-fi em-fi-sel" id="em-pair">
+            <option value="EURUSD">EUR/USD</option>
+            <option value="USDZAR">USD/ZAR</option>
+          </select>
+        </div>
+        <div class="em-fg"><label class="em-lbl">Bank Deal Rate</label><input class="em-fi" type="number" id="em-bankRate" step="0.00001"></div>
+        <div class="em-fg"><label class="em-lbl">Spot Rate</label><input class="em-fi" type="number" id="em-spotRate" step="0.00001"></div>
+        <div class="em-fg"><label class="em-lbl">CCY1 Amount</label><input class="em-fi" type="number" id="em-amtCcy1"></div>
+        <div class="em-fg"><label class="em-lbl">CCY2 Amount</label><input class="em-fi" type="number" id="em-amtCcy2"></div>
+        <div class="em-fg"><label class="em-lbl">Deal No.</label><input class="em-fi" type="text" id="em-dealNo"></div>
+        <div class="em-fg"><label class="em-lbl">Value Date</label><input class="em-fi" type="date" id="em-valueDate"></div>
+        <div class="em-fg" style="grid-column:1/-1"><label class="em-lbl">Given By</label>
+          <select class="em-fi em-fi-sel" id="em-givenBy">
+            <option value="">-- Select --</option>
+            <option value="Ms. Mariam">Ms. Mariam</option>
+            <option value="Mr. Assan">Mr. Assan</option>
+            <option value="Mr. Farkhan">Mr. Farkhan</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:10px 12px;background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--rs);font-size:12px;color:var(--text2)">
+        &#8505; Pip verdict and margin diff will be recalculated automatically when you save.
+      </div>
+    </div>
+    <div class="em-footer">
+      <button class="em-save" onclick="saveEdit()">Save Changes</button>
+      <button class="em-cancel" onclick="closeEditModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════
+   GRF TREASURY FX — UNIFIED SYSTEM
+   All logic: Deal Entry + Dashboard + Edit/Delete
+════════════════════════════════════════════════ */
+
+/* ═══ GLOBALS ═══ */
+var liveRate    = null;
+var currentPair = 'EURUSD';
+var dealType    = 'SELL_EUR';
+var rateLog     = [];
+var STORAGE_KEY = 'fx_deal_history_v2';
+var dashSortKey = 'date';
+var dashSortAsc = false;
+var charts      = {};
+
+/* ═══ SUPABASE CONFIG ═══ */
+var CFG_KEY = 'grf_supabase_config';
+var AUTH_KEY = 'grf_auth_ok';
+
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch(e) { return {}; }
+}
+function saveConfig() {
+  var url  = document.getElementById('cfg-url').value.trim().replace(/\/+$/, '');
+  var key  = document.getElementById('cfg-key').value.trim();
+  var pass = document.getElementById('cfg-pass').value;
+  if (!url || !key) { showCfgErr('Both URL and key are required.'); return; }
+  if (!url.startsWith('https://')) { showCfgErr('URL must start with https://'); return; }
+  if (!key.startsWith('eyJ') && !key.startsWith('sb_publishable_') && !key.startsWith('sb_')) {
+    showCfgErr('Key should start with eyJ... or sb_publishable_... \u2014 use the Publishable key, not the Secret key.');
+    return;
+  }
+  var cfg = { url: url, key: key, pass: pass };
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  document.getElementById('cfg-ok-msg').style.display = 'block';
+  document.getElementById('cfg-err-msg').style.display = 'none';
+  SUPABASE_URL = url; SUPABASE_KEY = key;
+  testAndLoad();
+}
+function showCfgErr(msg) {
+  document.getElementById('cfg-err-txt').textContent = msg;
+  document.getElementById('cfg-err-msg').style.display = 'block';
+  document.getElementById('cfg-ok-msg').style.display = 'none';
+}
+function skipConfig() {
+  localStorage.setItem(CFG_KEY, JSON.stringify({ skip: true }));
+  closeConfigModal(); loadHistoryFromSource();
+}
+function openConfig() {
+  var cfg = getConfig();
+  document.getElementById('cfg-url').value  = cfg.url  || '';
+  document.getElementById('cfg-key').value  = cfg.key  || '';
+  document.getElementById('cfg-pass').value = cfg.pass || '';
+  document.getElementById('cfg-ok-msg').style.display = 'none';
+  document.getElementById('cfg-err-msg').style.display = 'none';
+  document.getElementById('configModal').style.display = 'flex';
+}
+function closeConfigModal() {
+  document.getElementById('configModal').style.display = 'none';
+}
+
+/* ═══ SUPABASE API ═══ */
+var SUPABASE_URL = '';
+var SUPABASE_KEY = '';
+
+function sbHeaders() {
+  return {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+}
+
+async function dbLoadAll() {
+  try {
+    var res = await fetch(SUPABASE_URL + '/rest/v1/fx_deals?select=*&order=created_at.desc', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var rows = await res.json();
+    return rows.map(mapFromDb);
+  } catch(e) { console.error('DB load:', e); return null; }
+}
+
+async function dbInsert(record) {
+  try {
+    var res = await fetch(SUPABASE_URL + '/rest/v1/fx_deals', {
+      method: 'POST', headers: sbHeaders(),
+      body: JSON.stringify(mapToDb(record))
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    return data[0] || data;
+  } catch(e) { console.error('DB insert:', e); return null; }
+}
+
+async function dbUpdate(dbId, record) {
+  try {
+    var res = await fetch(SUPABASE_URL + '/rest/v1/fx_deals?id=eq.' + dbId, {
+      method: 'PATCH', headers: sbHeaders(),
+      body: JSON.stringify(mapToDb(record))
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } catch(e) { console.error('DB update:', e); }
+}
+
+async function dbDelete(dbId) {
+  try {
+    var res = await fetch(SUPABASE_URL + '/rest/v1/fx_deals?id=eq.' + dbId, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } catch(e) { console.error('DB delete:', e); }
+}
+
+function mapToDb(d) {
+  return {
+    deal_date:       d.date        || '',
+    deal_time:       d.time        || '',
+    pair:            d.pair        || 'EURUSD',
+    deal_type:       d.type        || '',
+    deal_type_label: d.typeLabel   || '',
+    deal_no:         d.dealNo      || '',
+    value_date:      d.valueDate   || '',
+    given_by:        d.givenBy     || '',
+    bank_rate:       parseFloat(d.bankRate)  || 0,
+    spot_rate:       parseFloat(d.spotRate)  || 0,
+    ccy1:            d.ccy1        || 'EUR',
+    ccy2:            d.ccy2        || 'USD',
+    amt_ccy1:        parseFloat(d.amtCcy1)   || 0,
+    amt_ccy2:        parseFloat(d.amtCcy2)   || 0,
+    pips:            parseFloat(d.pips)      || 0,
+    pip_verdict:     d.pipCls      || '',
+    marginal_diff:   parseFloat(d.margDiff)  || 0,
+    amount_in_words: d.amtWords    || ''
+  };
+}
+
+function mapFromDb(r) {
+  return {
+    id:        r.id,
+    dbId:      r.id,
+    datetime:  r.created_at,
+    date:      r.deal_date     || '',
+    time:      r.deal_time     || '',
+    pair:      r.pair          || 'EURUSD',
+    type:      r.deal_type     || '',
+    typeLabel: r.deal_type_label || '',
+    dealNo:    r.deal_no       || '',
+    valueDate: r.value_date    || '',
+    givenBy:   r.given_by      || '',
+    bankRate:  String(r.bank_rate   || ''),
+    spotRate:  String(r.spot_rate   || ''),
+    ccy1:      r.ccy1          || 'EUR',
+    ccy2:      r.ccy2          || 'USD',
+    amtCcy1:   String(r.amt_ccy1    || ''),
+    amtCcy2:   String(r.amt_ccy2    || ''),
+    pips:      String(r.pips        || ''),
+    pipCls:    r.pip_verdict   || 'ok',
+    margDiff:  String(r.marginal_diff || ''),
+    amtWords:  r.amount_in_words || ''
+  };
+}
+
+/* ═══ DB STATUS ═══ */
+var DB_MODE = 'local'; // 'supabase' | 'local'
+
+function setDbStatus(mode) {
+  DB_MODE = mode;
+  var pill = document.getElementById('dbPill');
+  if (mode === 'supabase') {
+    pill.style.display = 'none';
+  } else {
+    pill.style.display = 'flex';
+    document.getElementById('dbPillTxt').textContent = '\u26A0 DB Offline \u2014 Local Only';
+    pill.style.background = '#fff0f3'; pill.style.color = '#b91c3c'; pill.style.borderColor = '#f4a8b8';
+  }
+}
+
+/* ═══ STORAGE (localStorage fallback) ═══ */
+function loadHistory(){try{var s=localStorage.getItem(STORAGE_KEY);return s?JSON.parse(s):[];}catch(e){return[];}}
+function saveHistory(a){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(a));}catch(e){}}
+var dealHistory = [];
+
+/* ═══ TAB NAVIGATION ═══ */
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('page'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+  if (tab==='deal') {
+    document.querySelector('.nav-tab:nth-child(1)').classList.add('active');
+  } else {
+    document.querySelector('.nav-tab:nth-child(2)').classList.add('active');
+    renderDashboard();
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ═══ PAIR CONFIG ═══ */
+var PAIR_CONFIG = {
+  EURUSD:{label:'EUR/USD',placeholder:'e.g. 1.08520',spread:.00020,min:.5,max:3,decimals:5,
+    dealLabels:{SELL_EUR:'SELL EUR / BUY USD',BUY_EUR:'BUY EUR / SELL USD',SELL_USD:'SELL USD / BUY EUR',BUY_USD:'BUY USD / SELL EUR'},
+    ccy1:'EUR',ccy2:'USD'},
+  USDZAR:{label:'USD/ZAR',placeholder:'e.g. 18.4500',spread:.05,min:10,max:30,decimals:4,
+    dealLabels:{SELL_USD:'SELL USD / BUY ZAR',BUY_USD:'BUY USD / SELL ZAR',SELL_ZAR:'SELL ZAR / BUY USD',BUY_ZAR:'BUY ZAR / SELL USD'},
+    ccy1:'USD',ccy2:'ZAR'}
+};
+
+function setPair(pair) {
+  currentPair=pair; liveRate=null; rateLog=[];
+  dealType = pair==='EURUSD'?'SELL_EUR':'SELL_USD';
+  document.getElementById('tabEURUSD').classList.toggle('active',pair==='EURUSD');
+  document.getElementById('tabUSDZAR').classList.toggle('active',pair==='USDZAR');
+  var cfg=PAIR_CONFIG[pair];
+  document.getElementById('rateLabel').innerHTML=cfg.label+' Rate (FXStreet)<span>Paste rate &rarr; click Add to log &amp; track versions</span>';
+  document.getElementById('trackerTitle').textContent='GRF Treasury FX \u2014 Rate Tracker ('+cfg.label+')';
+  document.getElementById('manualRateInput').placeholder=cfg.placeholder;
+  ['liveRate','mBid','mAsk','mHigh','mLow'].forEach(function(id){document.getElementById(id).textContent='\u2014';});
+  document.getElementById('rateDir').className='rate-dir flat';
+  document.getElementById('rateDir').textContent='No rate yet';
+  document.getElementById('versionLogWrap').innerHTML='<div class="vl-empty">No rates added yet.</div>';
+  document.getElementById('trendSuggestion').style.display='none';
+  rebuildToggle(pair); resetCalc();
+}
+
+function rebuildToggle(pair) {
+  var cfg=PAIR_CONFIG[pair];
+  var types,classes,subs,labels,ids=['btnSE','btnBE','btnSU','btnBU'];
+  if (pair==='EURUSD') {
+    types=['SELL_EUR','BUY_EUR','SELL_USD','BUY_USD'];
+    classes=['se','be','su','bu'];
+    subs=['Give EUR \u00B7 Get USD','Give USD \u00B7 Get EUR','Give USD \u00B7 Get EUR','Give EUR \u00B7 Get USD'];
+    labels=['&#9660; Sell EUR','&#9650; Buy EUR','&#9660; Sell USD','&#9650; Buy USD'];
+  } else {
+    types=['SELL_USD','BUY_USD','SELL_ZAR','BUY_ZAR'];
+    classes=['se','be','su','bu'];
+    subs=['Give USD \u00B7 Get ZAR','Give ZAR \u00B7 Get USD','Give ZAR \u00B7 Get USD','Give USD \u00B7 Get ZAR'];
+    labels=['&#9660; Sell USD','&#9650; Buy USD','&#9660; Sell ZAR','&#9650; Buy ZAR'];
+  }
+  for (var i=0;i<4;i++) {
+    var b=document.getElementById(ids[i]);
+    b.className='dt '+classes[i];
+    b.innerHTML=labels[i]+'<span class="dt-sub">'+subs[i]+'</span>';
+    b.setAttribute('onclick',"setDealType('"+types[i]+"')");
+  }
+  dealType=types[0];
+  document.getElementById(ids[0]).classList.add('a');
+  document.getElementById('amtCcy').textContent='('+cfg.ccy1+')';
+}
+
+/* ═══ RATE INPUT ═══ */
+function applyManualRate() {
+  var cfg=PAIR_CONFIG[currentPair];
+  var val=parseFloat(document.getElementById('manualRateInput').value);
+  if (isNaN(val)||val<cfg.min||val>cfg.max) {alert('Please enter a valid '+cfg.label+' rate ('+cfg.placeholder+')');return;}
+  var prev=liveRate; liveRate=val;
+  var now=new Date(); var tstr=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  var diff=(prev!==null)?(val-prev):null;
+  var trend=diff===null?'first':diff>0?'up':diff<0?'down':'flat';
+  rateLog.unshift({rate:val,time:tstr,diff:diff,trend:trend,prev:prev});
+  document.getElementById('manualRateInput').value='';
+  updateRateUI(val,prev,diff,trend,cfg);
+  renderVersionLog(); calculate();
+}
+
+function updateRateUI(r,prev,diff,trend,cfg) {
+  var el=document.getElementById('liveRate');
+  el.textContent=r.toFixed(cfg.decimals);
+  el.className='rate-big'+(trend==='up'?' up':trend==='down'?' down':'');
+  var dirEl=document.getElementById('rateDir');
+  if (diff===null){dirEl.className='rate-dir flat';dirEl.textContent='First entry';}
+  else if (diff>0){dirEl.className='rate-dir up';dirEl.textContent='\u25b2 +'+diff.toFixed(cfg.decimals);}
+  else if (diff<0){dirEl.className='rate-dir down';dirEl.textContent='\u25bc '+diff.toFixed(cfg.decimals);}
+  else{dirEl.className='rate-dir flat';dirEl.textContent='\u2014 Unchanged';}
+  var sp=cfg.spread;
+  document.getElementById('mBid').textContent=(r-sp).toFixed(cfg.decimals);
+  document.getElementById('mAsk').textContent=(r+sp).toFixed(cfg.decimals);
+  var highs=rateLog.map(function(x){return x.rate;});
+  document.getElementById('mHigh').textContent=highs.length?Math.max.apply(null,highs).toFixed(cfg.decimals):'\u2014';
+  document.getElementById('mLow').textContent=highs.length?Math.min.apply(null,highs).toFixed(cfg.decimals):'\u2014';
+}
+
+function renderVersionLog() {
+  var wrap=document.getElementById('versionLogWrap');
+  if (!rateLog.length){wrap.innerHTML='<div class="vl-empty">No rates added yet.</div>';return;}
+  showTrendSuggestion();
+  var cfg=PAIR_CONFIG[currentPair];
+  var rows=rateLog.map(function(r,i){
+    var diffTxt=r.diff===null?'\u2014':(r.diff>=0?'+':'')+r.diff.toFixed(cfg.decimals);
+    var trendCls=r.trend==='up'?'trend-up':r.trend==='down'?'trend-dn':'trend-flat';
+    var arrow=r.trend==='up'?'\u25b2':r.trend==='down'?'\u25bc':'\u2014';
+    return '<tr style="'+(i===0?'background:var(--accent-bg);':'')+'"><td style="color:var(--text3);font-size:11px">'+r.time+'</td><td class="r" style="font-weight:'+(i===0?'700':'400')+'">'+r.rate.toFixed(cfg.decimals)+'</td><td class="r '+trendCls+'">'+arrow+' '+diffTxt+'</td><td class="r">'+(i===0?'<span style="font-size:11px;color:var(--accent);font-weight:600">LATEST</span>':'<span style="font-size:11px;color:var(--text3)">v'+(rateLog.length-i)+'</span>')+'</td></tr>';
+  }).join('');
+  wrap.innerHTML='<table class="vl-table"><thead><tr><th>Time</th><th class="r">Rate</th><th class="r">Change</th><th class="r">Ver.</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function showTrendSuggestion() {
+  var el=document.getElementById('trendSuggestion');
+  if (rateLog.length<2){el.style.display='none';return;}
+  var n=Math.min(rateLog.length,5);
+  var last=rateLog.slice(0,n);
+  var ups=last.filter(function(r){return r.trend==='up';}).length;
+  var dns=last.filter(function(r){return r.trend==='down';}).length;
+  var cls,msg;
+  var wantHigh=(dealType==='SELL_EUR'||dealType==='BUY_USD'||dealType==='SELL_USD'||dealType==='BUY_ZAR');
+  if (ups>=dns+1){
+    cls=wantHigh?'ok':'bad';
+    msg=(wantHigh?'\u25b2 Rate rising \u2014 FAVOURABLE for your deal type. Good time to lock in the bank rate if within pip range.':'\u25b2 Rate rising \u2014 UNFAVOURABLE for your deal type. Consider waiting for a dip.')+' ('+ups+' of last '+n+' moves up)';
+  } else if (dns>=ups+1){
+    cls=wantHigh?'bad':'ok';
+    msg=(wantHigh?'\u25bc Rate falling \u2014 UNFAVOURABLE for your deal type. Consider waiting for recovery.':'\u25bc Rate falling \u2014 FAVOURABLE for your deal type. Good time to confirm.')+' ('+dns+' of last '+n+' moves down)';
+  } else {
+    cls='warn';
+    msg='\u2194 Rate is moving sideways (mixed: '+ups+' up, '+dns+' down). No clear trend \u2014 current bank rate may be as good as it gets.';
+  }
+  el.className='suggestion '+cls; el.textContent=msg; el.style.display='block';
+}
+
+function clearRates() {
+  rateLog=[];liveRate=null;
+  ['liveRate','mBid','mAsk','mHigh','mLow'].forEach(function(id){document.getElementById(id).textContent='\u2014';});
+  document.getElementById('rateDir').className='rate-dir flat';
+  document.getElementById('rateDir').textContent='No rate yet';
+  document.getElementById('versionLogWrap').innerHTML='<div class="vl-empty">No rates added yet.</div>';
+  document.getElementById('trendSuggestion').style.display='none';
+  resetCalc();
+}
+
+/* ═══ DEAL TYPE ═══ */
+function setDealType(t) {
+  dealType=t;
+  ['btnSE','btnBE','btnSU','btnBU'].forEach(function(id){document.getElementById(id).classList.remove('a');});
+  var map;
+  if (currentPair==='EURUSD') map={SELL_EUR:'btnSE',BUY_EUR:'btnBE',SELL_USD:'btnSU',BUY_USD:'btnBU'};
+  else map={SELL_USD:'btnSE',BUY_USD:'btnBE',SELL_ZAR:'btnSU',BUY_ZAR:'btnBU'};
+  if (map[t]) document.getElementById(map[t]).classList.add('a');
+  var cfg=PAIR_CONFIG[currentPair];
+  var gc=(t==='SELL_EUR'||t==='BUY_USD'||t==='SELL_USD'||t==='BUY_ZAR');
+  document.getElementById('amtCcy').textContent='('+(gc?cfg.ccy1:cfg.ccy2)+')';
+  calculate();
+  if (rateLog.length>=2) showTrendSuggestion();
+}
+
+/* ═══ CALCULATE ═══ */
+function calculate() {
+  var bankRateRaw=document.getElementById('bankRate').value;
+  var amountRaw=document.getElementById('amount').value;
+  var pb=document.getElementById('pipBlock'); var vb=document.getElementById('vBlock'); var pv=document.getElementById('pipVal');
+  if (!liveRate||!bankRateRaw||!amountRaw){resetCalc();return;}
+  var bankRate=parseFloat(bankRateRaw); var inputAmt=parseFloat(amountRaw);
+  var spot=liveRate; var cfg=PAIR_CONFIG[currentPair]; var spread=cfg.spread;
+  var pipMult=currentPair==='EURUSD'?10000:100;
+  var pips=Math.abs(bankRate-spot)*pipMult;
+  pv.textContent=pips.toFixed(2);
+  var isGivingCcy1=(dealType==='SELL_EUR'||dealType==='BUY_USD'||dealType==='SELL_USD'||dealType==='BUY_ZAR');
+  var amtCcy1,amtCcy2,giveLabel,getLabel,youGive,youGet;
+  if (isGivingCcy1){amtCcy1=inputAmt;amtCcy2=inputAmt*bankRate;giveLabel=cfg.ccy1+' Amount (You Give)';getLabel=cfg.ccy2+' Amount (You Receive)';youGive=fmtN(amtCcy1.toFixed(0))+' '+cfg.ccy1;youGet=fmtN(amtCcy2.toFixed(2))+' '+cfg.ccy2;}
+  else{amtCcy2=inputAmt;amtCcy1=inputAmt/bankRate;giveLabel=cfg.ccy2+' Amount (You Give)';getLabel=cfg.ccy1+' Amount (You Receive)';youGive=fmtN(amtCcy2.toFixed(2))+' '+cfg.ccy2;youGet=fmtN(amtCcy1.toFixed(0))+' '+cfg.ccy1;}
+  var cls,icon,title,desc;
+  var dLbl=(PAIR_CONFIG[currentPair].dealLabels[dealType]||dealType);
+  if (pips<5){cls='stellar';icon='\u2B50';title='Impressive \u2014 Excellent Margin (< 5 Pips)';desc=dLbl+': Bank margin is only '+pips.toFixed(2)+' pips. Very competitive. Confirm with confidence.';}
+  else if (pips<=7){cls='ok';icon='\u2705';title='Satisfactory \u2014 Acceptable Margin (5\u20137 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips \u2014 within your 5\u20137 pip range. Fair rate. Safe to proceed.';}
+  else if (pips<=8){cls='caution';icon='\u26A0\uFE0F';title='Concerning \u2014 Above 7-Pip Policy Limit (7\u20138 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips \u2014 above your limit. Ask the bank to tighten the rate.';}
+  else if (pips<=9){cls='warn';icon='\u26D4';title='High Margin \u2014 Well Above Limit (8\u20139 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips. Negotiate firmly or try another bank.';}
+  else{cls='bad';icon='\u274C';title='Red Flag \u2014 Reject This Rate (> 9 Pips)';desc=dLbl+': Bank margin is '+pips.toFixed(2)+' pips. Unacceptable. Reject and request a new quote.';}
+  pb.className='pip-nb '+cls; vb.className='vb '+cls;
+  document.getElementById('vIcon').textContent=icon;
+  document.getElementById('vTitle').textContent=title;
+  document.getElementById('vDesc').textContent=desc;
+  document.getElementById('pipScaleWrap').style.display='block';
+  var marker=document.getElementById('pipMarker');
+  marker.style.display='block';
+  marker.style.left=Math.min(Math.max(pips/10*100,0),100)+'%';
+  document.getElementById('lblGive').textContent=giveLabel;
+  document.getElementById('valGive').textContent=youGive;
+  document.getElementById('valSpot').textContent=spot.toFixed(cfg.decimals)+'  (Mid)';
+  document.getElementById('valBank').textContent=bankRate.toFixed(cfg.decimals)+'  (Bank)';
+  document.getElementById('lblGet').textContent=getLabel;
+  document.getElementById('valGet').textContent=youGet;
+  var mktAmt,bankAmt,diffAmt,diffCcy;
+  if (isGivingCcy1){mktAmt=amtCcy1*spot;bankAmt=amtCcy2;diffAmt=bankAmt-mktAmt;diffCcy=cfg.ccy2;document.getElementById('valMkt').textContent=fmtN(mktAmt.toFixed(2))+' '+cfg.ccy2;}
+  else{mktAmt=amtCcy2/spot;bankAmt=amtCcy1;diffAmt=bankAmt-mktAmt;diffCcy=cfg.ccy1;document.getElementById('valMkt').textContent=fmtN(mktAmt.toFixed(0))+' '+cfg.ccy1;}
+  var dr=document.getElementById('diffRow');
+  if (diffAmt>=0){dr.className='dok';document.getElementById('diffLbl').textContent='You receive MORE than market (\u2713 Favourable)';document.getElementById('diffVal').textContent='+'+fmtN(Math.abs(diffAmt).toFixed(2))+' '+diffCcy;}
+  else{dr.className='dng';document.getElementById('diffLbl').textContent='You receive LESS than market (\u2717 Unfavourable)';document.getElementById('diffVal').textContent='\u2212'+fmtN(Math.abs(diffAmt).toFixed(2))+' '+diffCcy;}
+  var wordsAmt=isGivingCcy1?amtCcy2:amtCcy1; var wordsCcy=isGivingCcy1?cfg.ccy2:cfg.ccy1;
+  document.getElementById('valWords').textContent=numberToWords(wordsAmt,wordsCcy);
+  document.getElementById('amtSection').style.display='block';
+  document.getElementById('confirmBtn').disabled=false;
+  updateAmtWords();
+}
+
+function resetCalc() {
+  document.getElementById('pipVal').textContent='\u2014';
+  document.getElementById('pipBlock').className='pip-nb';
+  document.getElementById('vBlock').className='vb';
+  document.getElementById('vIcon').textContent='\u23F3';
+  document.getElementById('vTitle').textContent=!liveRate?'No market rate set':'Awaiting input';
+  document.getElementById('vDesc').textContent=!liveRate?'Add a rate from FXStreet above.':'Enter bank rate and amount.';
+  document.getElementById('amtSection').style.display='none';
+  document.getElementById('pipScaleWrap').style.display='none';
+  document.getElementById('confirmBtn').disabled=true;
+}
+
+function updateAmtWords() {
+  var raw=parseFloat(document.getElementById('amount').value);
+  var cfg=PAIR_CONFIG[currentPair];
+  var gc=(dealType==='SELL_EUR'||dealType==='BUY_USD'||dealType==='SELL_USD'||dealType==='BUY_ZAR');
+  var ccy=gc?cfg.ccy1:cfg.ccy2;
+  document.getElementById('amtWords').textContent=(!isNaN(raw)&&raw>0)?numberToWords(raw,ccy):'';
+}
+
+/* ═══ AMOUNT IN WORDS ═══ */
+function numberToWords(n,ccy) {
+  if (isNaN(n)||n<=0) return '';
+  var whole=Math.floor(n); var cents=Math.round((n-whole)*100);
+  var result=intToWords(whole)+' '+ccy;
+  if (cents>0) result+=' and '+intToWords(cents)+' Cents';
+  return result;
+}
+function intToWords(n) {
+  if (n===0) return 'Zero';
+  var ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  var tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function b1000(n){if(n<20)return ones[n];if(n<100)return tens[Math.floor(n/10)]+(n%10?' '+ones[n%10]:'');return ones[Math.floor(n/100)]+' Hundred'+(n%100?' '+b1000(n%100):'');}
+  var r='';
+  if (n>=1000000){r+=b1000(Math.floor(n/1000000))+' Million ';n%=1000000;}
+  if (n>=1000){r+=b1000(Math.floor(n/1000))+' Thousand ';n%=1000;}
+  if (n>0) r+=b1000(n);
+  return r.trim();
+}
+
+function fmtN(n){return Number(n).toLocaleString('en-US');}
+
+/* ═══ CONFIRM DEAL ═══ */
+function confirmDeal() {
+  var bankRate=parseFloat(document.getElementById('bankRate').value);
+  var inputAmt=parseFloat(document.getElementById('amount').value);
+  var dealNo=document.getElementById('dealNo').value||'\u2014';
+  var valueDate=document.getElementById('valueDate').value;
+  var givenBy=document.getElementById('givenBy').value||'\u2014';
+  var spot=liveRate; var cfg=PAIR_CONFIG[currentPair];
+  var isGivingCcy1=(dealType==='SELL_EUR'||dealType==='BUY_USD'||dealType==='SELL_USD'||dealType==='BUY_ZAR');
+  var amtCcy1=isGivingCcy1?inputAmt:(inputAmt/bankRate);
+  var amtCcy2=isGivingCcy1?(inputAmt*bankRate):inputAmt;
+  var pipMult=currentPair==='EURUSD'?10000:100;
+  var pipsVal=(Math.abs(bankRate-spot)*pipMult).toFixed(2);
+  var margDiff=Math.abs(bankRate-spot).toFixed(cfg.decimals);
+  var fmtDate=valueDate?new Date(valueDate+'T00:00:00').toLocaleDateString('en-GB'):'\u2014';
+  var now=new Date(); var timeStr=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); var todayStr=now.toLocaleDateString('en-GB');
+  var typeLabel=cfg.dealLabels[dealType]||dealType;
+  var getCcy=isGivingCcy1?cfg.ccy2:cfg.ccy1; var getAmt=isGivingCcy1?amtCcy2:amtCcy1;
+  var amtInWords=numberToWords(getAmt,getCcy);
+  var subject='Forex Deal Confirmation \u2013 '+typeLabel+' \u2013 '+fmtDate+' \u2013 Deal No. '+dealNo;
+  var SEP='\u2500'.repeat(44);
+  var body='Dear Teams,\n\nPlease find below the Forex Deal details for your reference:\n\n'+SEP+'\n'
+    +'  DEAL TYPE      :  '+typeLabel+'\n'+'  PAIR           :  '+cfg.label+'\n'
+    +'  '+cfg.ccy1+' AMOUNT     :  '+fmtN(amtCcy1.toFixed(0))+'\n'
+    +'  '+cfg.ccy2+' AMOUNT     :  '+fmtN(amtCcy2.toFixed(2))+'\n'
+    +'  DEAL RATE      :  '+bankRate.toFixed(cfg.decimals)+'\n'+'  SPOT RATE      :  '+spot.toFixed(cfg.decimals)+'\n'
+    +'  MARGINAL DIFF  :  '+margDiff+'\n'+'  DIFF IN PIPs   :  '+pipsVal+' pips\n'
+    +'  DEAL No.       :  '+dealNo+'\n'+'  VALUE DATE     :  '+fmtDate+'\n'+'  GIVEN BY       :  '+givenBy+'\n'
+    +SEP+'\n\n'+'  AMOUNT IN WORDS: '+amtInWords+'\n\n'+'** Use The Deal After 20 Minutes **\n\nRegards,\nES';
+  document.getElementById('emailSubject').textContent=subject;
+  document.getElementById('emailBody').textContent=body;
+  document.getElementById('emailPanel').style.display='block';
+  document.getElementById('emailPanel').scrollIntoView({behavior:'smooth'});
+  var p=parseFloat(pipsVal);
+  var pipCls=p<5?'stellar':p<=7?'ok':p<=8?'caution':p<=9?'warn':'bad';
+  var record={
+    id:Date.now(),datetime:now.toISOString(),date:todayStr,time:timeStr,
+    pair:currentPair,type:dealType,typeLabel:typeLabel,
+    dealNo:dealNo,valueDate:fmtDate,givenBy:givenBy,
+    bankRate:bankRate.toFixed(cfg.decimals),spotRate:spot.toFixed(cfg.decimals),
+    amtCcy1:amtCcy1.toFixed(0),amtCcy2:amtCcy2.toFixed(2),
+    ccy1:cfg.ccy1,ccy2:cfg.ccy2,pips:pipsVal,pipCls:pipCls,
+    margDiff:margDiff,amtWords:amtInWords
+  };
+  dealHistory.unshift(record);
+  saveHistory(dealHistory);
+  renderHistory();
+  updatePillCount();
+  // Save to Supabase if connected
+  if (DB_MODE === 'supabase') {
+    dbInsert(record).then(function(row) {
+      if (row && row.id) {
+        // Update local record with real DB id
+        var idx = dealHistory.findIndex(function(x){ return x.id === record.id; });
+        if (idx !== -1) { dealHistory[idx].dbId = row.id; saveHistory(dealHistory); }
+      }
+    });
+  }
+}
+
+function copyEmail() {
+  var s=document.getElementById('emailSubject').textContent; var b=document.getElementById('emailBody').textContent;
+  navigator.clipboard.writeText('Subject: '+s+'\n\n'+b).then(function(){
+    var btn=document.getElementById('copyBtn'); btn.textContent='\u2714 Copied!'; btn.classList.add('copied');
+    setTimeout(function(){btn.textContent='Copy to Clipboard';btn.classList.remove('copied');},2500);
+  });
+}
+
+function resetDeal() {
+  ['bankRate','dealNo'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('givenBy').value='';
+  document.getElementById('amtSection').style.display='none';
+  document.getElementById('confirmBtn').disabled=true;
+  document.getElementById('emailPanel').style.display='none';
+  document.getElementById('amtWords').textContent='';
+  resetCalc();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ═══ DEAL HISTORY RENDER (Entry Tab) ═══ */
+function renderHistory() {
+  var el=document.getElementById('histList'); var me=document.getElementById('histMeta');
+  if (!dealHistory.length){el.innerHTML='<div class="hemp">No deals confirmed yet. Deals are saved automatically.</div>';me.textContent='';return;}
+  me.textContent=dealHistory.length+' deal'+(dealHistory.length>1?'s':'')+' saved \u00B7 Persists across browser sessions';
+  var tc={SELL_EUR:'sell',BUY_USD:'sell',BUY_EUR:'buy',SELL_USD:'buy',SELL_ZAR:'sell',BUY_ZAR:'buy'};
+  var vl={stellar:'Impressive',ok:'Satisfactory',caution:'Concerning',warn:'High Margin',bad:'Red Flag'};
+  var rows=dealHistory.map(function(d,i){
+    return '<tr><td class="dim" style="white-space:nowrap">'+(d.date||'')+' '+(d.time||'')+'</td>'
+      +'<td><span class="ttag '+(tc[d.type]||'sell')+'">'+(d.typeLabel||d.type)+'</span></td>'
+      +'<td class="r">'+(d.bankRate||'\u2014')+'</td>'
+      +'<td class="r dim">'+(d.spotRate||'\u2014')+'</td>'
+      +'<td class="r">'+Number(d.amtCcy1||0).toLocaleString('en-US')+' '+(d.ccy1||'EUR')+'</td>'
+      +'<td class="r">'+Number(d.amtCcy2||0).toLocaleString('en-US')+' '+(d.ccy2||'USD')+'</td>'
+      +'<td class="r"><span class="ptag '+(d.pipCls||'ok')+'">'+(d.pips||'\u2014')+'</span></td>'
+      +'<td class="dim" style="font-size:11px">'+(vl[d.pipCls]||'')+'</td>'
+      +'<td class="dim">#'+(d.dealNo||'\u2014')+'</td>'
+      +'<td class="dim">'+(d.valueDate||'\u2014')+'</td>'
+      +'<td class="dim">'+(d.givenBy||'\u2014')+'</td>'
+      +'<td><button class="act-btn edit-btn" onclick="openEditModal('+d.id+')">&#9998; Edit</button>'
+      +'<button class="act-btn del-btn" onclick="deleteRecord('+d.id+')">&#128465; Del</button></td>'
+      +'</tr>';
+  }).join('');
+  el.innerHTML='<div class="htw"><table class="htbl"><thead><tr>'
+    +'<th>Date/Time</th><th>Deal Type</th><th class="r">Bank Rate</th><th class="r">Spot</th>'
+    +'<th class="r">CCY1 Amt</th><th class="r">CCY2 Amt</th><th class="r">Pips</th>'
+    +'<th>Verdict</th><th>Deal No.</th><th>Value Date</th><th>Given By</th><th>Actions</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+/* ═══ EXPORT / CLEAR ═══ */
+function exportCSV() {
+  if (!dealHistory.length){alert('No deals to export yet.');return;}
+  var headers=['DateTime','Date','Time','Pair','DealType','DealNo','ValueDate','GivenBy','BankRate','SpotRate','Ccy1Amount','Ccy2Amount','Ccy1','Ccy2','Pips','PipVerdict','MarginalDiff','AmountInWords'];
+  var vl={stellar:'Impressive',ok:'Satisfactory',caution:'Concerning',warn:'High Margin',bad:'Red Flag'};
+  var rows=dealHistory.map(function(d){
+    return [d.datetime||'',d.date||'',d.time||'',d.pair||'EURUSD',d.typeLabel||d.type,
+      d.dealNo||'',d.valueDate||'',d.givenBy||'',d.bankRate||'',d.spotRate||'',
+      d.amtCcy1||'',d.amtCcy2||'',d.ccy1||'EUR',d.ccy2||'USD',d.pips||'',
+      vl[d.pipCls]||d.pipCls||'',d.margDiff||'',d.amtWords||''
+    ].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');
+  });
+  var csv=[headers.join(',')].concat(rows).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'}); var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download='grf_fx_deals_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function clearHistory() {
+  if (!confirm('Clear all saved deal history? This cannot be undone.\n\nThis will delete ALL records from Supabase too if connected.')) return;
+  dealHistory=[]; saveHistory([]); renderHistory();
+  document.getElementById('pillTxt').textContent='System Ready';
+}
+
+/* ═══ DELETE ═══ */
+function deleteRecord(id) {
+  if (!confirm('Delete this deal? This cannot be undone.')) return;
+  var d = dealHistory.find(function(x){ return x.id === id; });
+  dealHistory = dealHistory.filter(function(x){ return x.id !== id; });
+  saveHistory(dealHistory); renderHistory(); updatePillCount();
+  if (document.getElementById('pageDashboard').classList.contains('active')) renderDashboard();
+  if (DB_MODE === 'supabase' && d && d.dbId) dbDelete(d.dbId);
+}
+
+/* ═══ EDIT MODAL ═══ */
+function openEditModal(id) {
+  var d=dealHistory.find(function(x){return x.id===id;});
+  if (!d) return;
+  document.getElementById('em-id').value=id;
+  document.getElementById('em-type').value=d.type||'SELL_EUR';
+  document.getElementById('em-pair').value=d.pair||'EURUSD';
+  document.getElementById('em-bankRate').value=d.bankRate||'';
+  document.getElementById('em-spotRate').value=d.spotRate||'';
+  document.getElementById('em-amtCcy1').value=d.amtCcy1||'';
+  document.getElementById('em-amtCcy2').value=d.amtCcy2||'';
+  document.getElementById('em-dealNo').value=d.dealNo||'';
+  // Convert date from dd/mm/yyyy to yyyy-mm-dd for the date input
+  var vd=d.valueDate||'';
+  if (vd && vd.includes('/')) {
+    var parts=vd.split('/'); // dd/mm/yyyy
+    if (parts.length===3) vd=parts[2]+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0');
+  }
+  document.getElementById('em-valueDate').value=vd;
+  document.getElementById('em-givenBy').value=d.givenBy||'';
+  document.getElementById('editModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+function closeEditOutside(e){if(e.target===document.getElementById('editModal'))closeEditModal();}
+
+function saveEdit() {
+  var id=parseInt(document.getElementById('em-id').value);
+  var idx=dealHistory.findIndex(function(x){return x.id===id;});
+  if (idx===-1) return;
+  var d=dealHistory[idx];
+  var pair=document.getElementById('em-pair').value;
+  var cfg=PAIR_CONFIG[pair]||PAIR_CONFIG.EURUSD;
+  var type=document.getElementById('em-type').value;
+  var bankRate=parseFloat(document.getElementById('em-bankRate').value)||parseFloat(d.bankRate);
+  var spotRate=parseFloat(document.getElementById('em-spotRate').value)||parseFloat(d.spotRate);
+  var amtCcy1=parseFloat(document.getElementById('em-amtCcy1').value)||parseFloat(d.amtCcy1);
+  var amtCcy2=parseFloat(document.getElementById('em-amtCcy2').value)||parseFloat(d.amtCcy2);
+  var dealNo=document.getElementById('em-dealNo').value||d.dealNo;
+  var givenBy=document.getElementById('em-givenBy').value||d.givenBy;
+  var vd=document.getElementById('em-valueDate').value;
+  var fmtDate=vd?new Date(vd+'T00:00:00').toLocaleDateString('en-GB'):d.valueDate;
+  // Recalculate pips
+  var pipMult=pair==='EURUSD'?10000:100;
+  var pipsVal=(Math.abs(bankRate-spotRate)*pipMult).toFixed(2);
+  var p=parseFloat(pipsVal);
+  var pipCls=p<5?'stellar':p<=7?'ok':p<=8?'caution':p<=9?'warn':'bad';
+  var margDiff=Math.abs(bankRate-spotRate).toFixed(cfg.decimals);
+  // Type label
+  var dealLabels=cfg.dealLabels||PAIR_CONFIG.EURUSD.dealLabels;
+  var typeLabel=dealLabels[type]||type;
+  // Amount in words
+  var isGivingCcy1=(type==='SELL_EUR'||type==='BUY_USD'||type==='SELL_USD'||type==='BUY_ZAR');
+  var getCcy=isGivingCcy1?cfg.ccy2:cfg.ccy1;
+  var getAmt=isGivingCcy1?amtCcy2:amtCcy1;
+  var amtWords=numberToWords(getAmt,getCcy);
+  // Update record
+  dealHistory[idx]=Object.assign({},d,{
+    pair:pair,type:type,typeLabel:typeLabel,
+    bankRate:bankRate.toFixed(cfg.decimals),spotRate:spotRate.toFixed(cfg.decimals),
+    amtCcy1:amtCcy1.toFixed(0),amtCcy2:amtCcy2.toFixed(2),
+    ccy1:cfg.ccy1,ccy2:cfg.ccy2,
+    dealNo:dealNo,valueDate:fmtDate,givenBy:givenBy,
+    pips:pipsVal,pipCls:pipCls,margDiff:margDiff,amtWords:amtWords
+  });
+  saveHistory(dealHistory); renderHistory(); closeEditModal(); updatePillCount();
+  if (document.getElementById('pageDashboard').classList.contains('active')) renderDashboard();
+  if (DB_MODE === 'supabase' && dealHistory[idx] && dealHistory[idx].dbId) {
+    dbUpdate(dealHistory[idx].dbId, dealHistory[idx]);
+  }
+}
+
+/* ═══ DASHBOARD ═══ */
+function renderDashboard() {
+  var n=dealHistory.length;
+  if (!n){document.getElementById('dashNoData').style.display='block';document.getElementById('dashContent').style.display='none';return;}
+  document.getElementById('dashNoData').style.display='none';
+  document.getElementById('dashContent').style.display='block';
+  buildSummaryBar(); buildKPIs(); buildMiniStats(); buildDashCharts(); renderDashTable();
+}
+
+function fmtK(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
+function pipColorD(p,a){a=a||1;var n=parseFloat(p);if(n<5)return 'rgba(22,163,74,'+a+')';if(n<=7)return 'rgba(5,150,105,'+a+')';if(n<=8)return 'rgba(234,88,12,'+a+')';if(n<=9)return 'rgba(217,119,6,'+a+')';return 'rgba(220,38,38,'+a+')';}
+function clsToV(c){return{stellar:'Impressive',ok:'Satisfactory',caution:'Concerning',warn:'High Margin',bad:'Red Flag'}[c]||c;}
+function sortedChron(){return dealHistory.slice().reverse();}
+
+function buildSummaryBar(){
+  var n=dealHistory.length;
+  var pips=dealHistory.map(function(d){return parseFloat(d.pips)||0;});
+  var avgPip=(pips.reduce(function(a,b){return a+b;},0)/pips.length).toFixed(2);
+  var totalEur=dealHistory.filter(function(d){return(d.ccy1||'EUR')==='EUR';}).reduce(function(s,d){return s+(parseFloat(d.amtCcy1)||0);},0);
+  var totalUsd=dealHistory.reduce(function(s,d){return s+(parseFloat(d.amtCcy2)||0);},0);
+  var dates=dealHistory.map(function(d){return d.date||'';}).filter(Boolean).sort();
+  var range=dates.length?dates[0].slice(0,10)+' \u2014 '+dates[dates.length-1].slice(0,10):'';
+  var within=dealHistory.filter(function(d){var p=parseFloat(d.pips);return p>=5&&p<=7;}).length;
+  document.getElementById('summaryBar').innerHTML=
+    sb2('Total Deals',n)+div2()+sb2('EUR Volume',fmtK(totalEur))+div2()+sb2('USD/ZAR Vol',fmtK(totalUsd))+div2()+sb2('Avg Pip Margin',avgPip)+div2()+sb2('Satisfactory',Math.round(within/n*100)+'%')+div2()+sb2('Period',range);
+  document.getElementById('dateRangeLabel').textContent=range;
+}
+function sb2(l,v){return '<div class="sb-item"><div class="sb-label">'+l+'</div><div class="sb-val">'+v+'</div></div>';}
+function div2(){return '<div class="sb-div"></div>';}
+
+function buildKPIs(){
+  var n=dealHistory.length;
+  var pips=dealHistory.map(function(d){return parseFloat(d.pips)||0;});
+  var avgP=(pips.reduce(function(a,b){return a+b;},0)/pips.length).toFixed(2);
+  var minP=Math.min.apply(null,pips).toFixed(2); var maxP=Math.max.apply(null,pips).toFixed(2);
+  var stellar=dealHistory.filter(function(d){return d.pipCls==='stellar';}).length;
+  var ok=dealHistory.filter(function(d){return d.pipCls==='ok';}).length;
+  var abv=dealHistory.filter(function(d){return d.pipCls==='caution'||d.pipCls==='warn'||d.pipCls==='bad';}).length;
+  var totalEur=dealHistory.filter(function(d){return(d.ccy1||'EUR')==='EUR';}).reduce(function(s,d){return s+(parseFloat(d.amtCcy1)||0);},0);
+  var totalUsd=dealHistory.filter(function(d){return(d.ccy2||'USD')==='USD';}).reduce(function(s,d){return s+(parseFloat(d.amtCcy2)||0);},0);
+  var sellers=dealHistory.filter(function(d){var t=(d.typeLabel||'').toLowerCase();return t.includes('sell eur')||t.includes('buy usd')||t.includes('sell usd/buy z');}).length;
+  var ks=[
+    {l:'Total Deals',v:n,c:'kblue',s:'all pairs'},
+    {l:'Avg Pip Margin',v:avgP,c:'kteal',s:'bank commission avg'},
+    {l:'Best (pips)',v:minP,c:'kgreen',s:'lowest margin seen'},
+    {l:'Worst (pips)',v:maxP,c:'kred',s:'highest margin seen'},
+    {l:'Impressive',v:stellar+' ('+Math.round(stellar/n*100)+'%)',c:'kgreen',s:'< 5 pip margin'},
+    {l:'Satisfactory',v:ok+' ('+Math.round(ok/n*100)+'%)',c:'kteal',s:'5\u20137 pip margin'},
+    {l:'Above Policy',v:abv+' ('+Math.round(abv/n*100)+'%)',c:'kamber',s:'7+ pip margin'},
+    {l:'EUR Volume',v:fmtK(totalEur),c:'kblue',s:'EUR transacted'},
+    {l:'USD Volume',v:fmtK(totalUsd),c:'kteal',s:'USD side'},
+    {l:'Sell / Buy',v:sellers+' / '+(n-sellers),c:'korange',s:'sell / buy base ccy'}
+  ];
+  document.getElementById('kpiGrid').innerHTML=ks.map(function(k){
+    return '<div class="kpi '+k.c+'"><div class="kpi-label">'+k.l+'</div><div class="kpi-val '+k.c+'">'+k.v+'</div><div class="kpi-sub">'+k.s+'</div></div>';
+  }).join('');
+}
+
+function buildMiniStats(){
+  var n=dealHistory.length;
+  var tiers=[{k:'stellar',l:'Impressive',s:'< 5 pips',c:'#16a34a'},{k:'ok',l:'Satisfactory',s:'5\u20137 pips',c:'#059669'},{k:'caution',l:'Concerning',s:'7\u20138 pips',c:'#ea580c'},{k:'warn',l:'High Margin',s:'8\u20139 pips',c:'#d97706'},{k:'bad',l:'Red Flag',s:'> 9 pips',c:'#dc2626'}];
+  document.getElementById('miniStats').innerHTML=tiers.map(function(t){
+    var cnt=dealHistory.filter(function(d){return d.pipCls===t.k;}).length;
+    return '<div class="ms-item"><div class="ms-label">'+t.l+'</div><div class="ms-val" style="color:'+t.c+'">'+cnt+'</div><div class="ms-pct">'+Math.round(cnt/n*100)+'% &middot; '+t.s+'</div></div>';
+  }).join('');
+}
+
+function buildDashCharts(){
+  Object.values(charts).forEach(function(c){c.destroy();}); charts={};
+  var deals=sortedChron();
+  var labels=deals.map(function(d,i){return d.date?d.date.slice(5):'#'+(i+1);});
+  var rates=deals.map(function(d){return parseFloat(d.bankRate)||null;});
+  var pipsArr=deals.map(function(d){return parseFloat(d.pips)||0;});
+  var eurs=deals.map(function(d){return parseFloat(d.amtCcy1)||0;});
+  var TK={font:{family:"'IBM Plex Mono'",size:10},color:'#9ca3af'};
+  var SC={x:{ticks:Object.assign({},TK,{maxTicksLimit:10}),grid:{color:'#f3f4f6'}},y:{ticks:TK,grid:{color:'#f3f4f6'}}};
+  charts.rate=new Chart(document.getElementById('chartRate'),{type:'line',data:{labels:labels,datasets:[{data:rates,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',tension:.3,pointRadius:3,pointBackgroundColor:'#3b82f6',fill:true,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:SC}});
+  charts.pips=new Chart(document.getElementById('chartPips'),{type:'bar',data:{labels:labels,datasets:[{data:pipsArr,backgroundColor:pipsArr.map(function(p){return pipColorD(p,.75);}),borderColor:pipsArr.map(function(p){return pipColorD(p,1);}),borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:10}),grid:{color:'#f3f4f6'}},y:{ticks:TK,grid:{color:'#f3f4f6'}}}}});
+  var typeMap={};dealHistory.forEach(function(d){var t=d.typeLabel||'Unknown';typeMap[t]=(typeMap[t]||0)+1;});
+  var tColors=['#3b82f6','#059669','#ea580c','#d97706','#7c3aed','#0891b2'];
+  var LEG={legend:{display:true,position:'bottom',labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:8,boxWidth:10}}};
+  charts.type=new Chart(document.getElementById('chartType'),{type:'doughnut',data:{labels:Object.keys(typeMap),datasets:[{data:Object.values(typeMap),backgroundColor:tColors.slice(0,Object.keys(typeMap).length),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:LEG}});
+  var vMap={stellar:0,ok:0,caution:0,warn:0,bad:0};dealHistory.forEach(function(d){if(vMap[d.pipCls]!==undefined)vMap[d.pipCls]++;});
+  charts.verdict=new Chart(document.getElementById('chartVerdict'),{type:'doughnut',data:{labels:['Impressive','Satisfactory','Concerning','High Margin','Red Flag'],datasets:[{data:[vMap.stellar,vMap.ok,vMap.caution,vMap.warn,vMap.bad],backgroundColor:['#16a34a','#059669','#ea580c','#d97706','#dc2626'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:LEG}});
+  var gMap={};dealHistory.forEach(function(d){var g=d.givenBy||'Unknown';gMap[g]=(gMap[g]||0)+1;});
+  charts.givenBy=new Chart(document.getElementById('chartGivenBy'),{type:'doughnut',data:{labels:Object.keys(gMap),datasets:[{data:Object.values(gMap),backgroundColor:['#3b82f6','#7c3aed','#0891b2','#db2777','#65a30d'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:LEG}});
+  charts.volRate=new Chart(document.getElementById('chartVolRate'),{type:'bar',data:{labels:labels,datasets:[{label:'Volume (CCY1)',type:'bar',data:eurs,backgroundColor:'rgba(59,130,246,.15)',borderColor:'rgba(59,130,246,.4)',borderWidth:1,borderRadius:3,yAxisID:'y'},{label:'Bank Rate',type:'line',data:rates,borderColor:'#dc2626',backgroundColor:'transparent',tension:.3,pointRadius:2,borderWidth:2,yAxisID:'y2'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:12,boxWidth:12}}},scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:12}),grid:{color:'#f3f4f6'}},y:{position:'left',ticks:TK,grid:{color:'#f3f4f6'},title:{display:true,text:'CCY1 Volume',color:'#9ca3af',font:{size:10}}},y2:{position:'right',ticks:TK,grid:{display:false},title:{display:true,text:'Bank Rate',color:'#9ca3af',font:{size:10}}}}}});
+  var runAvg=[];var sum=0;deals.forEach(function(d,i){sum+=parseFloat(d.pips)||0;runAvg.push(+(sum/(i+1)).toFixed(3));});
+  charts.avgPip=new Chart(document.getElementById('chartAvgPip'),{type:'line',data:{labels:labels,datasets:[{label:'Running Avg Pips',data:runAvg,borderColor:'#7c3aed',backgroundColor:'rgba(124,58,237,.06)',fill:true,tension:.3,pointRadius:2,borderWidth:2},{label:'Policy Max (7)',data:Array(deals.length).fill(7),borderColor:'rgba(234,88,12,.5)',borderDash:[6,3],pointRadius:0,borderWidth:1.5,fill:false},{label:'Target Max (5)',data:Array(deals.length).fill(5),borderColor:'rgba(5,150,105,.5)',borderDash:[6,3],pointRadius:0,borderWidth:1.5,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:12,boxWidth:12}}},scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:12}),grid:{color:'#f3f4f6'}},y:{ticks:TK,grid:{color:'#f3f4f6'},min:0,title:{display:true,text:'Avg Pips',color:'#9ca3af',font:{size:10}}}}}});
+}
+
+/* ═══ DASHBOARD TABLE ═══ */
+function renderDashTable() {
+  var typeF=(document.getElementById('ftType').value||'').toLowerCase();
+  var verdictF=document.getElementById('ftVerdict').value;
+  var pairF=(document.getElementById('ftPair').value||'').toUpperCase();
+  var search=(document.getElementById('fsSearch').value||'').toLowerCase();
+  var filtered=dealHistory.filter(function(d){
+    var t=(d.typeLabel||'').toLowerCase();
+    return(!typeF||t.includes(typeF))&&(!verdictF||d.pipCls===verdictF)&&(!pairF||(d.pair||'EURUSD')===pairF)&&(!search||((d.dealNo||'').toLowerCase().includes(search)||(d.givenBy||'').toLowerCase().includes(search)));
+  });
+  filtered.sort(function(a,b){var va=a[dashSortKey]||'';var vb=b[dashSortKey]||'';var na=parseFloat(va);var nb=parseFloat(vb);if(!isNaN(na)&&!isNaN(nb))return dashSortAsc?na-nb:nb-na;return dashSortAsc?va.localeCompare(vb):vb.localeCompare(va);});
+  document.getElementById('filterCount').textContent='Showing '+filtered.length+' of '+dealHistory.length+' deals';
+  document.getElementById('dashTableFooter').textContent=filtered.length+' deals matching filters';
+  var tbody=document.getElementById('dashTableBody');
+  if (!filtered.length){tbody.innerHTML='<tr><td colspan="14"><div class="tbl-empty">No deals match current filters.</div></td></tr>';return;}
+  var tc=function(t){var tl=(t||'').toLowerCase();return(tl.includes('sell eur')||tl.includes('buy usd')||tl.includes('sell usd/buy z'))?'sell':'buy';};
+  var vl={stellar:'Impressive',ok:'Satisfactory',caution:'Concerning',warn:'High Margin',bad:'Red Flag'};
+  tbody.innerHTML=filtered.map(function(d,i){
+    var p=parseFloat(d.pips)||0;
+    return '<tr>'
+      +'<td class="dim">'+(i+1)+'</td>'
+      +'<td class="dim" style="white-space:nowrap">'+(d.date||'').slice(0,10)+' '+(d.time||'')+'</td>'
+      +'<td class="dim">'+(d.pair||'EURUSD')+'</td>'
+      +'<td><span class="badge '+tc(d.typeLabel)+'">'+(d.typeLabel||'\u2014')+'</span></td>'
+      +'<td class="r">'+(d.bankRate||'\u2014')+'</td>'
+      +'<td class="r dim">'+(d.spotRate||'\u2014')+'</td>'
+      +'<td class="r">'+Number(d.amtCcy1||0).toLocaleString('en-US')+' '+(d.ccy1||'EUR')+'</td>'
+      +'<td class="r">'+Number(d.amtCcy2||0).toLocaleString('en-US')+' '+(d.ccy2||'USD')+'</td>'
+      +'<td class="r" style="color:'+pipColorD(p,1)+'">'+p.toFixed(2)+'</td>'
+      +'<td><span class="badge '+(d.pipCls||'ok')+'">'+(vl[d.pipCls]||d.pipCls||'\u2014')+'</span></td>'
+      +'<td class="dim">'+(d.dealNo||'\u2014')+'</td>'
+      +'<td class="dim">'+(d.valueDate||'\u2014')+'</td>'
+      +'<td class="dim">'+(d.givenBy||'\u2014')+'</td>'
+      +'<td style="white-space:nowrap">'
+      +'<button class="act-btn edit-btn" onclick="openEditModal('+d.id+')">&#9998; Edit</button>'
+      +'<button class="act-btn del-btn" onclick="deleteRecord('+d.id+')">&#128465; Del</button>'
+      +'</td></tr>';
+  }).join('');
+}
+
+function sortDashTable(key){if(dashSortKey===key)dashSortAsc=!dashSortAsc;else{dashSortKey=key;dashSortAsc=false;}renderDashTable();}
+
+/* ═══ HELP MODAL ═══ */
+function openHelp(){document.getElementById('helpModal').classList.add('open');document.body.style.overflow='hidden';}
+function closeHelp(){document.getElementById('helpModal').classList.remove('open');document.body.style.overflow='';}
+function closeHelpOutside(e){if(e.target===document.getElementById('helpModal'))closeHelp();}
+function showHelpTab(id,btn){document.querySelectorAll('.help-section').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.htab').forEach(function(b){b.classList.remove('active');});document.getElementById('hs-'+id).classList.add('active');btn.classList.add('active');}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeHelp();closeEditModal();}});
+
+/* ═══ HELPERS ═══ */
+function updatePillCount() {
+  var n = dealHistory.length;
+  var modeStr = DB_MODE === 'supabase' ? ' (Supabase)' : ' (Local)';
+  document.getElementById('pillTxt').textContent = n + ' deal' + (n!==1?'s':'') + ' saved' + modeStr;
+}
+
+async function testAndLoad() {
+  var rows = await dbLoadAll();
+  if (rows !== null) {
+    setDbStatus('supabase');
+    dealHistory = rows;
+    saveHistory(dealHistory);
+    closeConfigModal();
+    renderHistory();
+    updatePillCount();
+    renderDashboard();
+  } else {
+    setDbStatus('local');
+    showCfgErr('Connection failed. Check your URL and key, then try again.');
+    // fall back to localStorage
+    dealHistory = loadHistory();
+    renderHistory();
+    updatePillCount();
+  }
+}
+
+async function loadHistoryFromSource() {
+  var cfg = getConfig();
+  // Check password
+  if (cfg.pass) {
+    var stored = sessionStorage.getItem('grf_auth');
+    if (stored !== cfg.pass) {
+      var pw = prompt('GRF Treasury FX\nEnter access password:');
+      if (pw !== cfg.pass) {
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:IBM Plex Sans,sans-serif;flex-direction:column;gap:12px"><div style="font-size:28px">\uD83D\uDD12</div><div style="font-size:16px;color:#b91c3c;font-weight:600">Access Denied</div><div style="font-size:13px;color:#6b7280">Incorrect password.</div></div>';
+        return;
+      }
+      sessionStorage.setItem('grf_auth', cfg.pass);
+    }
+  }
+  // Try Supabase
+  if (cfg.url && cfg.key && !cfg.skip) {
+    SUPABASE_URL = cfg.url;
+    SUPABASE_KEY = cfg.key;
+    var rows = await dbLoadAll();
+    if (rows !== null) {
+      setDbStatus('supabase');
+      dealHistory = rows;
+      saveHistory(dealHistory);
+      renderHistory();
+      updatePillCount();
+      return;
+    } else {
+      setDbStatus('local');
+    }
+  } else {
+    setDbStatus('local');
+  }
+  // localStorage fallback
+  dealHistory = loadHistory();
+  renderHistory();
+  updatePillCount();
+}
+
+/* ═══ INIT ═══ */
+document.getElementById('valueDate').value=new Date().toISOString().split('T')[0];
+document.getElementById('amount').addEventListener('input',updateAmtWords);
+setPair('EURUSD');
+
+// Check if first time (no config set)
+var _cfg = getConfig();
+if (!_cfg.url && !_cfg.skip) {
+  // First time — show config modal
+  document.getElementById('configModal').style.display = 'flex';
+} else {
+  loadHistoryFromSource();
+}
+</script>
+</body>
+</html>
