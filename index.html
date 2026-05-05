@@ -1851,51 +1851,28 @@ function showToast(msg) {
 function openEmailPreview(id) {
   var d = dealHistory.find(function(x){ return x.id === id; });
   if (!d) return;
-  var cfg = PAIR_CONFIG[d.pair] || PAIR_CONFIG.EURUSD;
   var SEP = '─'.repeat(44);
   var typeLabel = d.typeLabel || d.type;
   var isSellEP = (d.type==='SELL_EUR'||d.type==='SELL_USD'||d.type==='SELL_ZAR');
   var refLblEP = isSellEP ? 'Bid' : 'Ask';
   var subject = 'Forex Deal Confirmation – '+typeLabel+' – '+(d.valueDate||'—')+' – Deal No. '+(d.dealNo||'—');
-  var body = 'Dear Teams,
-
-Please find below the Forex Deal details for your reference:
-
-'
-    +SEP+'
-'
-    +'  DEAL TYPE      :  '+typeLabel+'
-'
-    +'  PAIR           :  '+(d.pair==='EURUSD'?'EUR/USD':'USD/ZAR')+'
-'
-    +'  '+(d.ccy1||'EUR')+' AMOUNT     :  '+Number(d.amtCcy1||0).toLocaleString('en-US')+'
-'
-    +'  '+(d.ccy2||'USD')+' AMOUNT     :  '+Number(d.amtCcy2||0).toLocaleString('en-US')+'
-'
-    +'  DEAL RATE      :  '+(d.bankRate||'—')+'
-'
-    +'  SPOT RATE ('+refLblEP+'):  '+(d.spotRate||'—')+'
-'
-    +'  MARGINAL DIFF  :  '+(d.margDiff||'—')+'
-'
-    +'  DIFF IN PIPs   :  '+(d.pips||'—')+' pips
-'
-    +'  DEAL No.       :  '+(d.dealNo||'—')+'
-'
-    +'  VALUE DATE     :  '+(d.valueDate||'—')+'
-'
-    +'  GIVEN BY       :  '+(d.givenBy||'—')+'
-'
-    +SEP+'
-
-'
-    +'  AMOUNT IN WORDS: '+(d.amtWords||'—')+'
-
-'
-    +'** Use The Deal After 20 Minutes **
-
-Regards,
-ES';
+  var ln = '\n';
+  var body = 'Dear Teams,'+ln+ln+'Please find below the Forex Deal details for your reference:'+ln+ln
+    +SEP+ln
+    +'  DEAL TYPE      :  '+typeLabel+ln
+    +'  PAIR           :  '+(d.pair==='EURUSD'?'EUR/USD':'USD/ZAR')+ln
+    +'  '+(d.ccy1||'EUR')+' AMOUNT     :  '+Number(d.amtCcy1||0).toLocaleString('en-US')+ln
+    +'  '+(d.ccy2||'USD')+' AMOUNT     :  '+Number(d.amtCcy2||0).toLocaleString('en-US')+ln
+    +'  DEAL RATE      :  '+(d.bankRate||'—')+ln
+    +'  SPOT RATE ('+refLblEP+'):  '+(d.spotRate||'—')+ln
+    +'  MARGINAL DIFF  :  '+(d.margDiff||'—')+ln
+    +'  DIFF IN PIPs   :  '+(d.pips||'—')+' pips'+ln
+    +'  DEAL No.       :  '+(d.dealNo||'—')+ln
+    +'  VALUE DATE     :  '+(d.valueDate||'—')+ln
+    +'  GIVEN BY       :  '+(d.givenBy||'—')+ln
+    +SEP+ln+ln
+    +'  AMOUNT IN WORDS: '+(d.amtWords||'—')+ln+ln
+    +'** Use The Deal After 20 Minutes **'+ln+ln+'Regards,'+ln+'ES';
   document.getElementById('prevEmailSubject').textContent = subject;
   document.getElementById('prevEmailBody').textContent = body;
   document.getElementById('prevCopyBtn').textContent = '⚐ Copy to Clipboard';
@@ -1913,9 +1890,7 @@ function closeEmailPreview(e) {
 function copyPreviewEmail() {
   var s = document.getElementById('prevEmailSubject').textContent;
   var b = document.getElementById('prevEmailBody').textContent;
-  navigator.clipboard.writeText('Subject: '+s+'
-
-'+b).then(function(){
+  navigator.clipboard.writeText('Subject: ' + s + '\n\n' + b).then(function(){
     var btn = document.getElementById('prevCopyBtn');
     btn.textContent = '✔ Copied!'; btn.style.background = 'var(--green)';
     setTimeout(function(){ btn.textContent = '⚐ Copy to Clipboard'; btn.style.background = 'var(--accent)'; }, 2500);
