@@ -1128,8 +1128,16 @@ function setDealType(t) {
   else map={SELL_USD:'btnSE',BUY_USD:'btnBE',SELL_ZAR:'btnSU',BUY_ZAR:'btnBU'};
   if (map[t]) document.getElementById(map[t]).classList.add('a');
   var cfg=PAIR_CONFIG[currentPair];
-  var gc=(t==='SELL_EUR'||t==='BUY_USD'||t==='SELL_USD'||t==='BUY_ZAR');
-  document.getElementById('amtCcy').textContent='('+(gc?cfg.ccy1:cfg.ccy2)+')';
+  // Amount label = the currency the user enters
+  // EURUSD: SELL_EUR/BUY_EUR → EUR | SELL_USD/BUY_USD → USD
+  // USDZAR: SELL_USD/BUY_USD → USD | SELL_ZAR/BUY_ZAR → ZAR
+  var amtCcyTxt;
+  if (currentPair === 'EURUSD') {
+    amtCcyTxt = (t==='SELL_EUR'||t==='BUY_EUR') ? '(EUR)' : '(USD)';
+  } else {
+    amtCcyTxt = (t==='SELL_USD'||t==='BUY_USD') ? '(USD)' : '(ZAR)';
+  }
+  document.getElementById('amtCcy').textContent = amtCcyTxt;
   calculate();
   if (rateLog.length>=2) showTrendSuggestion();
 }
@@ -1166,15 +1174,29 @@ function calculate() {
    * BUY_ZAR  : User knows ZAR needed    → USD = ZAR ÷ rate   (enter CCY2, calc CCY1)
    */
 
-  var entersCcy1 = (dealType === 'SELL_EUR' || dealType === 'BUY_EUR'
-                 || dealType === 'SELL_USD' || dealType === 'BUY_USD');
+  /*
+   * entersCcy1 = true  → user typed ccy1, ccy2 is calculated
+   * entersCcy1 = false → user typed ccy2, ccy1 is calculated
+   *
+   * EURUSD: SELL_EUR / BUY_EUR → enter EUR (ccy1) → entersCcy1 = true
+   *         SELL_USD / BUY_USD → enter USD (ccy2) → entersCcy1 = false
+   * USDZAR: SELL_USD / BUY_USD → enter USD (ccy1) → entersCcy1 = true
+   *         SELL_ZAR / BUY_ZAR → enter ZAR (ccy2) → entersCcy1 = false
+   */
+  var entersCcy1;
+  if (currentPair === 'EURUSD') {
+    entersCcy1 = (dealType === 'SELL_EUR' || dealType === 'BUY_EUR');
+  } else {
+    entersCcy1 = (dealType === 'SELL_USD' || dealType === 'BUY_USD');
+  }
+
   var amtCcy1, amtCcy2;
   if (entersCcy1) {
     amtCcy1 = inputAmt;
-    amtCcy2 = inputAmt * bankRate;   // EUR×rate = USD
+    amtCcy2 = inputAmt * bankRate;
   } else {
     amtCcy2 = inputAmt;
-    amtCcy1 = inputAmt / bankRate;   // USD÷rate = EUR
+    amtCcy1 = inputAmt / bankRate;
   }
 
   /* Pip reference: Sell vs Bid, Buy vs Ask */
@@ -1184,35 +1206,32 @@ function calculate() {
   var pips      = Math.abs(bankRate - refRate) * pipMult;
   pv.textContent = pips.toFixed(2);
 
-  /* Labels */
-  var giveLabel, getLabel, youGive, youGet, knownLabel, calcLabel;
+  /* Labels per deal type */
+  var giveLabel, getLabel, youGive, youGet;
   if (dealType === 'SELL_EUR') {
-    giveLabel = 'EUR Amount (You Sell)'; getLabel = 'USD Amount (You Receive)';
-    knownLabel = 'EUR entered'; calcLabel = 'USD calculated';
+    giveLabel = 'EUR Amount (You Sell)';  getLabel = 'USD Amount (You Receive)';
+    youGive = fmtN(amtCcy1.toFixed(0))+' EUR'; youGet = fmtN(amtCcy2.toFixed(2))+' USD';
   } else if (dealType === 'BUY_EUR') {
-    giveLabel = 'EUR Amount (You Need)'; getLabel = 'USD Amount (You Pay)';
-    knownLabel = 'EUR entered'; calcLabel = 'USD calculated';
-  } else if (dealType === 'SELL_USD') {
-    giveLabel = 'USD Amount (You Sell)'; getLabel = 'EUR Amount (You Receive)';
-    knownLabel = 'USD entered'; calcLabel = 'EUR calculated';
-  } else if (dealType === 'BUY_USD') {
-    giveLabel = 'USD Amount (You Need)'; getLabel = 'EUR Amount (You Pay)';
-    knownLabel = 'USD entered'; calcLabel = 'EUR calculated';
+    giveLabel = 'EUR Amount (You Need)';  getLabel = 'USD Amount (You Pay)';
+    youGive = fmtN(amtCcy1.toFixed(0))+' EUR'; youGet = fmtN(amtCcy2.toFixed(2))+' USD';
+  } else if (dealType === 'SELL_USD' && currentPair === 'EURUSD') {
+    giveLabel = 'USD Amount (You Sell)';  getLabel = 'EUR Amount (You Receive)';
+    youGive = fmtN(amtCcy2.toFixed(2))+' USD'; youGet = fmtN(amtCcy1.toFixed(0))+' EUR';
+  } else if (dealType === 'BUY_USD' && currentPair === 'EURUSD') {
+    giveLabel = 'USD Amount (You Need)';  getLabel = 'EUR Amount (You Pay)';
+    youGive = fmtN(amtCcy2.toFixed(2))+' USD'; youGet = fmtN(amtCcy1.toFixed(0))+' EUR';
+  } else if (dealType === 'SELL_USD' && currentPair === 'USDZAR') {
+    giveLabel = 'USD Amount (You Sell)';  getLabel = 'ZAR Amount (You Receive)';
+    youGive = fmtN(amtCcy1.toFixed(2))+' USD'; youGet = fmtN(amtCcy2.toFixed(2))+' ZAR';
+  } else if (dealType === 'BUY_USD' && currentPair === 'USDZAR') {
+    giveLabel = 'USD Amount (You Need)';  getLabel = 'ZAR Amount (You Pay)';
+    youGive = fmtN(amtCcy1.toFixed(2))+' USD'; youGet = fmtN(amtCcy2.toFixed(2))+' ZAR';
   } else if (dealType === 'SELL_ZAR') {
-    giveLabel = 'ZAR Amount (You Sell)'; getLabel = 'USD Amount (You Receive)';
-    knownLabel = 'ZAR entered'; calcLabel = 'USD calculated';
+    giveLabel = 'ZAR Amount (You Sell)';  getLabel = 'USD Amount (You Receive)';
+    youGive = fmtN(amtCcy2.toFixed(2))+' ZAR'; youGet = fmtN(amtCcy1.toFixed(0))+' USD';
   } else { // BUY_ZAR
-    giveLabel = 'ZAR Amount (You Need)'; getLabel = 'USD Amount (You Pay)';
-    knownLabel = 'ZAR entered'; calcLabel = 'USD calculated';
-  }
-
-  // For EUR/USD: SELL_USD & BUY_USD enter USD (CCY2) → EUR calculated
-  if (currentPair === 'EURUSD' && (dealType === 'SELL_USD' || dealType === 'BUY_USD')) {
-    youGive = fmtN(amtCcy2.toFixed(2)) + ' ' + cfg.ccy2;
-    youGet  = fmtN(amtCcy1.toFixed(0)) + ' ' + cfg.ccy1;
-  } else {
-    youGive = fmtN(amtCcy1.toFixed(0)) + ' ' + cfg.ccy1;
-    youGet  = fmtN(amtCcy2.toFixed(2)) + ' ' + cfg.ccy2;
+    giveLabel = 'ZAR Amount (You Need)';  getLabel = 'USD Amount (You Pay)';
+    youGive = fmtN(amtCcy2.toFixed(2))+' ZAR'; youGet = fmtN(amtCcy1.toFixed(0))+' USD';
   }
 
   /* Verdict */
@@ -1242,40 +1261,60 @@ function calculate() {
   document.getElementById('lblGet').textContent  = getLabel;
   document.getElementById('valGet').textContent  = youGet;
 
-  /* Comparison vs market Bid/Ask */
-  var mktAmt  = entersCcy1 ? (amtCcy1 * refRate) : (amtCcy2 / refRate);
-  var bankAmt = entersCcy1 ? amtCcy2 : amtCcy1;
-  var diffAmt = bankAmt - mktAmt;
-  var diffCcy = entersCcy1 ? cfg.ccy2 : cfg.ccy1;
-
-  /* For SELL_USD/BUY_USD in EUR/USD, entered is CCY2 so flip the comparison */
-  if (currentPair === 'EURUSD' && (dealType === 'SELL_USD' || dealType === 'BUY_USD')) {
-    mktAmt  = amtCcy2 / refRate;   // USD entered ÷ ref = EUR at market
-    bankAmt = amtCcy1;              // EUR you get from bank
-    diffAmt = bankAmt - mktAmt;
-    diffCcy = cfg.ccy1;
-    document.getElementById('valMkt').textContent = fmtN(mktAmt.toFixed(0)) + ' ' + cfg.ccy1 + ' (at ' + refLabel + ')';
-  } else {
-    document.getElementById('valMkt').textContent = fmtN(mktAmt.toFixed(2)) + ' ' + cfg.ccy2 + ' (at ' + refLabel + ')';
+  /* Comparison vs market Bid/Ask — always on the received/calculated side */
+  var mktAmt, bankAmt, diffAmt, diffCcy, mktTxt;
+  if (dealType === 'SELL_EUR') {
+    // gave EUR, received USD. Compare USD received vs USD at market bid
+    mktAmt = amtCcy1 * refRate; bankAmt = amtCcy2; diffAmt = bankAmt - mktAmt; diffCcy = 'USD';
+    mktTxt = fmtN(mktAmt.toFixed(2)) + ' USD (at Bid)';
+  } else if (dealType === 'BUY_EUR') {
+    // want EUR, pay USD. Compare USD paid vs USD at market ask
+    mktAmt = amtCcy1 * refRate; bankAmt = amtCcy2; diffAmt = mktAmt - bankAmt; diffCcy = 'USD';
+    mktTxt = fmtN(mktAmt.toFixed(2)) + ' USD (at Ask)';
+  } else if (dealType === 'SELL_USD' && currentPair === 'EURUSD') {
+    // sold USD, received EUR. Compare EUR received vs EUR at market bid
+    mktAmt = amtCcy2 / refRate; bankAmt = amtCcy1; diffAmt = bankAmt - mktAmt; diffCcy = 'EUR';
+    mktTxt = fmtN(mktAmt.toFixed(0)) + ' EUR (at Bid)';
+  } else if (dealType === 'BUY_USD' && currentPair === 'EURUSD') {
+    // want USD, pay EUR. Compare EUR paid vs EUR at market ask
+    mktAmt = amtCcy2 / refRate; bankAmt = amtCcy1; diffAmt = mktAmt - bankAmt; diffCcy = 'EUR';
+    mktTxt = fmtN(mktAmt.toFixed(0)) + ' EUR (at Ask)';
+  } else if (dealType === 'SELL_USD' && currentPair === 'USDZAR') {
+    mktAmt = amtCcy1 * refRate; bankAmt = amtCcy2; diffAmt = bankAmt - mktAmt; diffCcy = 'ZAR';
+    mktTxt = fmtN(mktAmt.toFixed(2)) + ' ZAR (at Bid)';
+  } else if (dealType === 'BUY_USD' && currentPair === 'USDZAR') {
+    mktAmt = amtCcy1 * refRate; bankAmt = amtCcy2; diffAmt = mktAmt - bankAmt; diffCcy = 'ZAR';
+    mktTxt = fmtN(mktAmt.toFixed(2)) + ' ZAR (at Ask)';
+  } else if (dealType === 'SELL_ZAR') {
+    mktAmt = amtCcy2 / refRate; bankAmt = amtCcy1; diffAmt = bankAmt - mktAmt; diffCcy = 'USD';
+    mktTxt = fmtN(mktAmt.toFixed(2)) + ' USD (at Bid)';
+  } else { // BUY_ZAR
+    mktAmt = amtCcy2 / refRate; bankAmt = amtCcy1; diffAmt = mktAmt - bankAmt; diffCcy = 'USD';
+    mktTxt = fmtN(mktAmt.toFixed(2)) + ' USD (at Ask)';
   }
+  document.getElementById('valMkt').textContent = mktTxt;
 
   var dr = document.getElementById('diffRow');
   if (diffAmt >= 0) {
     dr.className = 'dok';
-    document.getElementById('diffLbl').textContent = 'You receive MORE than market (' + refLabel + ') ✓ Favourable';
+    document.getElementById('diffLbl').textContent = 'Favourable for Company ✓ (better than market ' + refLabel + ')';
     document.getElementById('diffVal').textContent = '+' + fmtN(Math.abs(diffAmt).toFixed(2)) + ' ' + diffCcy;
   } else {
     dr.className = 'dng';
-    document.getElementById('diffLbl').textContent = 'You receive LESS than market (' + refLabel + ') ✗ Unfavourable';
+    document.getElementById('diffLbl').textContent = 'Unfavourable for Company ✗ (worse than market ' + refLabel + ')';
     document.getElementById('diffVal').textContent = '−' + fmtN(Math.abs(diffAmt).toFixed(2)) + ' ' + diffCcy;
   }
 
-  /* Amount in words — always the calculated/received amount */
-  var wordsAmt = entersCcy1 ? amtCcy2 : amtCcy1;
-  var wordsCcy = entersCcy1 ? cfg.ccy2 : cfg.ccy1;
-  if (currentPair === 'EURUSD' && (dealType === 'SELL_USD' || dealType === 'BUY_USD')) {
-    wordsAmt = amtCcy1; wordsCcy = cfg.ccy1;
-  }
+  /* Amount in words — the calculated/received amount */
+  var wordsAmt, wordsCcy;
+  if (dealType === 'SELL_EUR') { wordsAmt = amtCcy2; wordsCcy = 'USD'; }
+  else if (dealType === 'BUY_EUR')  { wordsAmt = amtCcy2; wordsCcy = 'USD'; }
+  else if (dealType === 'SELL_USD' && currentPair === 'EURUSD') { wordsAmt = amtCcy1; wordsCcy = 'EUR'; }
+  else if (dealType === 'BUY_USD'  && currentPair === 'EURUSD') { wordsAmt = amtCcy1; wordsCcy = 'EUR'; }
+  else if (dealType === 'SELL_USD' && currentPair === 'USDZAR') { wordsAmt = amtCcy2; wordsCcy = 'ZAR'; }
+  else if (dealType === 'BUY_USD'  && currentPair === 'USDZAR') { wordsAmt = amtCcy2; wordsCcy = 'ZAR'; }
+  else if (dealType === 'SELL_ZAR') { wordsAmt = amtCcy1; wordsCcy = 'USD'; }
+  else                              { wordsAmt = amtCcy1; wordsCcy = 'USD'; }
   document.getElementById('valWords').textContent = numberToWords(wordsAmt, wordsCcy);
   document.getElementById('amtSection').style.display = 'block';
   document.getElementById('confirmBtn').disabled = false;
@@ -1296,7 +1335,13 @@ function resetCalc() {
 function updateAmtWords() {
   var raw=parseFloat(document.getElementById('amount').value);
   var cfg=PAIR_CONFIG[currentPair];
-  document.getElementById('amtWords').textContent=(!isNaN(raw)&&raw>0)?numberToWords(raw,cfg.ccy1):'';
+  var wccy;
+  if (currentPair === 'EURUSD') {
+    wccy = (dealType==='SELL_EUR'||dealType==='BUY_EUR') ? 'EUR' : 'USD';
+  } else {
+    wccy = (dealType==='SELL_USD'||dealType==='BUY_USD') ? 'USD' : 'ZAR';
+  }
+  document.getElementById('amtWords').textContent=(!isNaN(raw)&&raw>0)?numberToWords(raw,wccy):'';
 }
 
 /* ═══ AMOUNT IN WORDS ═══ */
@@ -1332,18 +1377,18 @@ function confirmDeal() {
   var cfg       = PAIR_CONFIG[currentPair];
   var pipMult   = currentPair === 'EURUSD' ? 10000 : 100;
 
-  // Mirror calculate() logic exactly
-  var entersCcy1 = (dealType==='SELL_EUR'||dealType==='BUY_EUR'||dealType==='SELL_USD'||dealType==='BUY_USD');
+  // Mirror calculate() — same entersCcy1 logic
+  var entersCcy1;
+  if (currentPair === 'EURUSD') {
+    entersCcy1 = (dealType === 'SELL_EUR' || dealType === 'BUY_EUR');
+  } else {
+    entersCcy1 = (dealType === 'SELL_USD' || dealType === 'BUY_USD');
+  }
   var amtCcy1, amtCcy2;
   if (entersCcy1) {
     amtCcy1 = inputAmt;
     amtCcy2 = inputAmt * bankRate;
   } else {
-    amtCcy2 = inputAmt;
-    amtCcy1 = inputAmt / bankRate;
-  }
-  // EUR/USD SELL_USD & BUY_USD: user entered USD (ccy2), EUR (ccy1) is calculated
-  if (currentPair === 'EURUSD' && (dealType==='SELL_USD'||dealType==='BUY_USD')) {
     amtCcy2 = inputAmt;
     amtCcy1 = inputAmt / bankRate;
   }
@@ -1354,15 +1399,15 @@ function confirmDeal() {
   var pipsVal   = (Math.abs(bankRate - refRateCD) * pipMult).toFixed(2);
   var margDiff  = Math.abs(bankRate - refRateCD).toFixed(cfg.decimals);
 
-  // Words on the received/calculated amount
+  // Words on the received/calculated amount (mirrors calculate() logic)
   var wordsAmt, wordsCcy;
-  if (currentPair === 'EURUSD' && (dealType==='SELL_USD'||dealType==='BUY_USD')) {
-    wordsAmt = amtCcy1; wordsCcy = cfg.ccy1;
-  } else if (entersCcy1) {
-    wordsAmt = amtCcy2; wordsCcy = cfg.ccy2;
-  } else {
-    wordsAmt = amtCcy1; wordsCcy = cfg.ccy1;
-  }
+  if (dealType === 'SELL_EUR' || dealType === 'BUY_EUR') { wordsAmt = amtCcy2; wordsCcy = 'USD'; }
+  else if (dealType === 'SELL_USD' && currentPair === 'EURUSD') { wordsAmt = amtCcy1; wordsCcy = 'EUR'; }
+  else if (dealType === 'BUY_USD'  && currentPair === 'EURUSD') { wordsAmt = amtCcy1; wordsCcy = 'EUR'; }
+  else if (dealType === 'SELL_USD' && currentPair === 'USDZAR') { wordsAmt = amtCcy2; wordsCcy = 'ZAR'; }
+  else if (dealType === 'BUY_USD'  && currentPair === 'USDZAR') { wordsAmt = amtCcy2; wordsCcy = 'ZAR'; }
+  else if (dealType === 'SELL_ZAR') { wordsAmt = amtCcy1; wordsCcy = 'USD'; }
+  else                              { wordsAmt = amtCcy1; wordsCcy = 'USD'; }
 
   var fmtDate  = valueDate ? new Date(valueDate+'T00:00:00').toLocaleDateString('en-GB') : '—';
   var now      = new Date();
