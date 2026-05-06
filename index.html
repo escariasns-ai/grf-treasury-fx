@@ -422,6 +422,7 @@ tbody tr:hover{background:var(--surface2);}
   <div class="nav-right">
     <button class="help-btn" onclick="openHelp()">&#10067; Help</button>
     <button class="help-btn" onclick="openConfig()" style="padding:6px 12px" title="Database Settings">&#9881;</button>
+    <button class="help-btn" onclick="openBankManager()" style="padding:6px 10px;color:var(--accent)" title="Manage Banks">&#127981; Banks</button>
     <div class="pill" id="dbPill" style="background:#fff0f3;border-color:#f4a8b8;color:#b91c3c;display:none">
       <span id="dbPillTxt">&#9679; DB Offline</span>
     </div>
@@ -528,13 +529,20 @@ tbody tr:hover{background:var(--surface2);}
       <div class="fg"><label class="flbl">Deal No.</label><input class="fi" type="text" id="dealNo" placeholder="13856"></div>
       <div class="fg"><label class="flbl">Value Date</label><input class="fi" type="date" id="valueDate"></div>
     </div>
-    <div class="fg"><label class="flbl">Given By</label>
-      <select class="fi fi-sel" id="givenBy">
-        <option value="">-- Select --</option>
-        <option value="Ms. Mariam">Ms. Mariam</option>
-        <option value="Mr. Assan">Mr. Assan</option>
-        <option value="Mr. Farkhan">Mr. Farkhan</option>
-      </select>
+    <div class="grid2i" style="gap:10px">
+      <div class="fg"><label class="flbl">Bank</label>
+        <select class="fi fi-sel" id="dealBank">
+          <option value="">-- Select Bank --</option>
+        </select>
+      </div>
+      <div class="fg"><label class="flbl">Given By</label>
+        <select class="fi fi-sel" id="givenBy">
+          <option value="">-- Select --</option>
+          <option value="Ms. Mariam">Ms. Mariam</option>
+          <option value="Mr. Assan">Mr. Assan</option>
+          <option value="Mr. Farkhan">Mr. Farkhan</option>
+        </select>
+      </div>
     </div>
   </div>
   <div class="card">
@@ -566,7 +574,8 @@ tbody tr:hover{background:var(--surface2);}
         <tr><td>Amount in Words</td><td id="valWords" style="font-size:12px;font-style:italic;color:var(--text2)">&mdash;</td></tr>
       </table>
     </div>
-    <button class="cbtn" id="confirmBtn" onclick="confirmDeal()" disabled>Confirm Deal &amp; Generate Email</button>
+    <div id="bankBenchmarkNote" style="display:none;margin-top:10px;padding:10px 14px;border-radius:var(--rs);font-size:12.5px;line-height:1.6;border:1.5px solid var(--border);background:var(--surface2)"></div>
+<button class="cbtn" id="confirmBtn" onclick="confirmDeal()" disabled>Confirm Deal &amp; Generate Email</button>
   </div>
 </div>
 
@@ -719,6 +728,18 @@ tbody tr:hover{background:var(--surface2);}
       </div>
     </div>
 
+    <!-- ── CHARTS ROW 3b: Bank analysis ── -->
+    <div class="chart-grid-2" style="margin-bottom:14px">
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Avg Pip Margin by Bank</div><div class="chart-subtitle">Bank performance benchmark &mdash; lower is better for GRF</div></div></div>
+        <div class="chart-wrap h220"><canvas id="chartPipByBank"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Deal Volume by Bank</div><div class="chart-subtitle">Count of deals per bank</div></div></div>
+        <div class="chart-wrap h220"><canvas id="chartDealsByBank"></canvas></div>
+      </div>
+    </div>
+
     <!-- ── CHARTS ROW 4: Volume & running avg ── -->
     <div class="chart-grid-2" style="margin-bottom:14px">
       <div class="chart-card">
@@ -774,6 +795,7 @@ tbody tr:hover{background:var(--surface2);}
         <th onclick="sortDashTable('date')">#</th>
         <th onclick="sortDashTable('date')">Date &amp; Time</th>
         <th>Pair</th>
+        <th onclick="sortDashTable('bank')">Bank</th>
         <th onclick="sortDashTable('typeLabel')">Deal Type</th>
         <th class="r" onclick="sortDashTable('bankRate')">Bank Rate</th>
         <th class="r" onclick="sortDashTable('spotRate')">Spot</th>
@@ -859,6 +881,55 @@ tbody tr:hover{background:var(--surface2);}
   </div>
 </div>
 
+<!-- ══ BANK MANAGER MODAL ══ -->
+<div class="modal-overlay" id="bankModal" onclick="closeBankOutside(event)">
+  <div class="edit-modal" style="max-width:700px">
+    <div class="em-hdr" style="background:var(--text)">
+      <div class="em-title" style="color:#fff">&#127981; Bank Master Data</div>
+      <button class="modal-close" style="color:rgba(255,255,255,.7)" onclick="closeBankModal()">&times;</button>
+    </div>
+    <div class="em-body" style="padding:18px 22px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+        Configure your counterpart banks and their standard pip margin ranges. These are used in the pip analysis to compare against each bank's own benchmark.
+      </div>
+      <div id="bankTableWrap"></div>
+      <div style="margin-top:16px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs)">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;letter-spacing:.5px;text-transform:uppercase">Add / Edit Bank</div>
+        <div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr 1fr;gap:8px;align-items:end">
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">Short ID</label>
+            <input class="em-fi" type="text" id="bk-id" placeholder="e.g. RAK" maxlength="6" style="font-size:13px"></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">Bank Name</label>
+            <input class="em-fi" type="text" id="bk-name" placeholder="Full bank name" style="font-size:13px"></div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">EUR/USD Pips (min-max)</label>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input class="em-fi" type="number" id="bk-eumin" placeholder="5" step="0.5" style="font-size:13px;width:50px">
+              <span style="color:var(--text3)">–</span>
+              <input class="em-fi" type="number" id="bk-eumax" placeholder="7" step="0.5" style="font-size:13px;width:50px">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">USD/ZAR Pips (min-max)</label>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input class="em-fi" type="number" id="bk-zarmin" placeholder="20" step="1" style="font-size:13px;width:50px">
+              <span style="color:var(--text3)">–</span>
+              <input class="em-fi" type="number" id="bk-zarmax" placeholder="25" step="1" style="font-size:13px;width:50px">
+            </div>
+          </div>
+          <div style="padding-bottom:1px">
+            <button onclick="addOrUpdateBank()" class="em-save" style="width:100%;padding:9px">Save Bank</button>
+          </div>
+        </div>
+        <input type="hidden" id="bk-editing">
+      </div>
+    </div>
+    <div class="em-footer">
+      <button class="em-save" onclick="closeBankModal()">Done</button>
+      <button class="em-cancel" onclick="resetBanksToDefault()" style="color:var(--amber);border-color:var(--amber-bd)">Reset to Defaults</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ HELP MODAL ══ -->
 <div class="modal-overlay" id="helpModal" onclick="closeHelpOutside(event)">
   <div class="modal">
@@ -913,7 +984,12 @@ tbody tr:hover{background:var(--surface2);}
         <div class="em-fg"><label class="em-lbl">CCY2 Amount</label><input class="em-fi" type="number" id="em-amtCcy2"></div>
         <div class="em-fg"><label class="em-lbl">Deal No.</label><input class="em-fi" type="text" id="em-dealNo"></div>
         <div class="em-fg"><label class="em-lbl">Value Date</label><input class="em-fi" type="date" id="em-valueDate"></div>
-        <div class="em-fg" style="grid-column:1/-1"><label class="em-lbl">Given By</label>
+        <div class="em-fg"><label class="em-lbl">Bank</label>
+          <select class="em-fi em-fi-sel" id="em-bank">
+            <option value="">-- Select Bank --</option>
+          </select>
+        </div>
+        <div class="em-fg"><label class="em-lbl">Given By</label>
           <select class="em-fi em-fi-sel" id="em-givenBy">
             <option value="">-- Select --</option>
             <option value="Ms. Mariam">Ms. Mariam</option>
@@ -944,7 +1020,27 @@ var liveRate    = null;
 var currentPair = 'EURUSD';
 var dealType    = 'SELL_EUR';
 var rateLog     = [];
-var STORAGE_KEY = 'fx_deal_history_v2';
+var STORAGE_KEY  = 'fx_deal_history_v2';
+var BANKS_KEY    = 'grf_banks_config';
+
+// Default banks with standard pip margins per pair
+var DEFAULT_BANKS = [
+  {id:'CITI',name:'Citibank (CITI)', stdEUmin:5,stdEUmax:7,stdZARmin:20,stdZARmax:25,active:true},
+  {id:'HBZ', name:'HBZ Bank (HBZ)',  stdEUmin:5,stdEUmax:7,stdZARmin:20,stdZARmax:25,active:true},
+  {id:'MSH', name:'Mashreq (MSH)',   stdEUmin:5,stdEUmax:7,stdZARmin:20,stdZARmax:25,active:true},
+  {id:'NBD', name:'Emirates NBD (NBD)',stdEUmin:5,stdEUmax:7,stdZARmin:20,stdZARmax:25,active:true},
+  {id:'NBO', name:'NBO Bank (NBO)',  stdEUmin:5,stdEUmax:7,stdZARmin:20,stdZARmax:25,active:true},
+];
+
+function loadBanks(){
+  try{var s=localStorage.getItem(BANKS_KEY);return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_BANKS));}
+  catch(e){return JSON.parse(JSON.stringify(DEFAULT_BANKS));}
+}
+function saveBanks(b){try{localStorage.setItem(BANKS_KEY,JSON.stringify(b));}catch(e){}}
+var bankMaster = loadBanks();
+
+function getActiveBanks(){return bankMaster.filter(function(b){return b.active;});}
+function getBankById(id){return bankMaster.find(function(b){return b.id===id;})||null;}
 var dashSortKey = 'date';
 var dashSortAsc = false;
 var charts      = {};
@@ -1159,6 +1255,7 @@ function setPair(pair) {
   document.getElementById('rateDir').className='rate-dir flat';
   document.getElementById('rateDir').textContent='No rate yet';
   document.getElementById('versionLogWrap').innerHTML='<div class="vl-empty">No rates added yet.</div>';
+  populateBankDropdown();
   document.getElementById('trendSuggestion').style.display='none';
   rebuildToggle(pair); resetCalc();
 }
@@ -1204,20 +1301,24 @@ function applyManualRate() {
 }
 
 function updateRateUI(r,prev,diff,trend,cfg) {
+  // Update main rate display
   var el=document.getElementById('liveRate');
   el.textContent=r.toFixed(cfg.decimals);
   el.className='rate-big'+(trend==='up'?' up':trend==='down'?' down':'');
+  // Direction badge
   var dirEl=document.getElementById('rateDir');
   if (diff===null){dirEl.className='rate-dir flat';dirEl.textContent='First entry';}
   else if (diff>0){dirEl.className='rate-dir up';dirEl.textContent='\u25b2 +'+diff.toFixed(cfg.decimals);}
   else if (diff<0){dirEl.className='rate-dir down';dirEl.textContent='\u25bc '+diff.toFixed(cfg.decimals);}
   else{dirEl.className='rate-dir flat';dirEl.textContent='\u2014 Unchanged';}
-  var sp=cfg.spread;
-  document.getElementById('mBid').textContent=(r-sp).toFixed(cfg.decimals);
-  document.getElementById('mAsk').textContent=(r+sp).toFixed(cfg.decimals);
-  var highs=rateLog.map(function(x){return x.rate;});
-  document.getElementById('mHigh').textContent=highs.length?Math.max.apply(null,highs).toFixed(cfg.decimals):'\u2014';
-  document.getElementById('mLow').textContent=highs.length?Math.min.apply(null,highs).toFixed(cfg.decimals):'\u2014';
+  // Session stats — computed from rateLog (the pasted rate IS the market Bid/Ask)
+  var vals=rateLog.map(function(x){return x.rate;});
+  var n=vals.length;
+  var setEl=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('mHigh', n ? Math.max.apply(null,vals).toFixed(cfg.decimals) : '\u2014');
+  setEl('mLow',  n ? Math.min.apply(null,vals).toFixed(cfg.decimals) : '\u2014');
+  setEl('mAvg',  n ? (vals.reduce(function(a,b){return a+b;},0)/n).toFixed(cfg.decimals) : '\u2014');
+  setEl('mCount',n ? n+' reading'+(n>1?'s':'') : '\u2014');
 }
 
 function renderVersionLog() {
@@ -1499,6 +1600,21 @@ function calculate() {
   document.getElementById('amtSection').style.display = 'block';
   document.getElementById('confirmBtn').disabled = false;
   updateAmtWords();
+  // Bank-specific benchmark note
+  var bNote = document.getElementById('bankBenchmarkNote');
+  var bHint = getBankPipHint(pips, currentPair);
+  if (bHint && bNote) {
+    var bCls = bHint.cls;
+    var bColors = {stellar:'var(--green)',ok:'var(--accent)',bad:'var(--red)'};
+    bNote.style.display = 'block';
+    bNote.style.borderColor = bColors[bCls]||'var(--border)';
+    bNote.style.background  = bCls==='stellar'?'var(--green-bg)':bCls==='bad'?'var(--red-bg)':'var(--accent-bg)';
+    bNote.style.color = bColors[bCls]||'var(--text2)';
+    bNote.innerHTML = '<b>'+bHint.bank.id+' Benchmark:</b> '
+      +bHint.verdict+' &nbsp;&middot;&nbsp; Standard range: '+bHint.min+'–'+bHint.max+' pips';
+  } else if (bNote) {
+    bNote.style.display = 'none';
+  }
 }
 function resetCalc() {
   document.getElementById('pipVal').textContent='\u2014';
@@ -1611,6 +1727,7 @@ function confirmDeal() {
     +'  DEAL No.       :  '+dealNo+ln
     +'  VALUE DATE     :  '+fmtDate+ln
     +'  GIVEN BY       :  '+givenBy+ln
+    +'  BANK           :  '+(bankName||'\u2014')+ln
     +SEP+ln+ln
     +'  AMOUNT IN WORDS: '+amtInWords+ln+ln
     +'** Use The Deal After 20 Minutes **'+ln+ln+'Regards,'+ln+'ES'
@@ -1627,7 +1744,7 @@ function confirmDeal() {
   var record  = {
     id:Date.now(), datetime:now.toISOString(), date:todayStr, time:timeStr,
     pair:currentPair, type:dealType, typeLabel:typeLabel,
-    dealNo:dealNo, valueDate:fmtDate, givenBy:givenBy,
+    dealNo:dealNo, valueDate:fmtDate, givenBy:givenBy, bank:dealBank, bankName:bankName,
     bankRate:bankRate.toFixed(cfg.decimals), spotRate:refRateCD.toFixed(cfg.decimals),
     amtCcy1:amtCcy1.toFixed(0), amtCcy2:amtCcy2.toFixed(2),
     ccy1:cfg.ccy1, ccy2:cfg.ccy2, pips:pipsVal, pipCls:pipCls,
@@ -1678,6 +1795,7 @@ function renderHistory() {
   var rows=dealHistory.map(function(d,i){
     return '<tr><td class="dim" style="white-space:nowrap">'+(d.date||'')+' '+(d.time||'')+'</td>'
       +'<td><span class="ttag '+(tc[d.type]||'sell')+'">'+(d.typeLabel||d.type)+'</span></td>'
+      +'<td class="dim" style="font-size:11px;white-space:nowrap"><b>'+(d.bank||'—')+'</b></td>'
       +'<td class="r">'+(d.bankRate||'\u2014')+'</td>'
       +'<td class="r dim">'+(d.spotRate||'\u2014')+'</td>'
       +'<td class="r">'+Number(d.amtCcy1||0).toLocaleString('en-US')+' '+(d.ccy1||'EUR')+'</td>'
@@ -1695,7 +1813,7 @@ function renderHistory() {
       +'</tr>';
   }).join('');
   el.innerHTML='<div class="htw"><table class="htbl"><thead><tr>'
-    +'<th>Date/Time</th><th>Deal Type</th><th class="r">Bank Rate</th><th class="r">Spot</th>'
+    +'<th>Date/Time</th><th>Deal Type</th><th>Bank</th><th class="r">Bank Rate</th><th class="r">Spot</th>'
     +'<th class="r">CCY1 Amt</th><th class="r">CCY2 Amt</th><th class="r">Pips</th>'
     +'<th>Verdict</th><th>Deal No.</th><th>Value Date</th><th>Given By</th><th>Actions</th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
@@ -1754,6 +1872,15 @@ function openEditModal(id) {
     if (parts.length===3) vd=parts[2]+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0');
   }
   document.getElementById('em-valueDate').value=vd;
+  // Populate bank dropdown in edit modal
+  var emBankSel = document.getElementById('em-bank');
+  if (emBankSel) {
+    emBankSel.innerHTML = '<option value="">-- Select Bank --</option>';
+    getActiveBanks().forEach(function(b){
+      var o=document.createElement('option'); o.value=b.id; o.textContent=b.name; emBankSel.appendChild(o);
+    });
+    emBankSel.value = d.bank||'';
+  }
   document.getElementById('em-givenBy').value=d.givenBy||'';
   document.getElementById('editModal').classList.add('open');
   document.body.style.overflow='hidden';
@@ -1778,7 +1905,10 @@ function saveEdit() {
   var amtCcy1=parseFloat(document.getElementById('em-amtCcy1').value)||parseFloat(d.amtCcy1);
   var amtCcy2=parseFloat(document.getElementById('em-amtCcy2').value)||parseFloat(d.amtCcy2);
   var dealNo=document.getElementById('em-dealNo').value||d.dealNo;
-  var givenBy=document.getElementById('em-givenBy').value||d.givenBy;
+  var givenBy  = document.getElementById('em-givenBy').value||d.givenBy;
+  var editBank = document.getElementById('em-bank') ? (document.getElementById('em-bank').value||d.bank||'') : (d.bank||'');
+  var editBankObj = editBank ? getBankById(editBank) : null;
+  var editBankName = editBankObj ? editBankObj.name : (editBank||'');
   var vd=document.getElementById('em-valueDate').value;
   var fmtDate=vd?new Date(vd+'T00:00:00').toLocaleDateString('en-GB'):d.valueDate;
   // Recalculate pips
@@ -1800,7 +1930,7 @@ function saveEdit() {
     bankRate:bankRate.toFixed(cfg.decimals),spotRate:spotRate.toFixed(cfg.decimals),
     amtCcy1:amtCcy1.toFixed(0),amtCcy2:amtCcy2.toFixed(2),
     ccy1:cfg.ccy1,ccy2:cfg.ccy2,
-    dealNo:dealNo,valueDate:fmtDate,givenBy:givenBy,
+    dealNo:dealNo,valueDate:fmtDate,givenBy:givenBy,bank:editBank,bankName:editBankName,
     pips:pipsVal,pipCls:pipCls,margDiff:margDiff,amtWords:amtWords
   });
   saveHistory(dealHistory); renderHistory(); closeEditModal(); updatePillCount();
@@ -1945,6 +2075,7 @@ function buildSummaryBar(deals) {
     sb2('USD/ZAR',za.length+' deals')+div2()+
     sb2('ZAR Volume',fmtK(zarVol))+div2()+
     sb2('Avg Pip',avgP)+div2()+
+    sb2('Banks',Object.keys(deals.reduce(function(m,d){if(d.bank)m[d.bank]=1;return m;},{})).length+' active')+div2()+
     sb2('Period',range);
 }
 function sb2(l,v){return '<div class="sb-item"><div class="sb-label">'+l+'</div><div class="sb-val">'+v+'</div></div>';}
@@ -2097,6 +2228,58 @@ function buildDashCharts(deals) {
     options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:LEG}}
   });
 
+  // ── Chart 7b: Avg pip per bank ──
+  var bkMap={},bkPips={},bkVol={};
+  deals.forEach(function(d){
+    var b=d.bank||'Unknown';
+    bkMap[b]=(bkMap[b]||0)+1;
+    if(!bkPips[b])bkPips[b]=[];
+    bkPips[b].push(parseFloat(d.pips)||0);
+    bkVol[b]=(bkVol[b]||0)+(parseFloat(d.amtCcy1)||0);
+  });
+  var bkNames=Object.keys(bkMap).filter(function(b){return b!=='Unknown'||bkMap[b]>0;});
+
+  // Map bank names to display labels
+  function bkLabel(id){var b=getBankById(id);return b?b.id:id;}
+  var bkLabels=bkNames.map(bkLabel);
+  var bkAvgPips=bkNames.map(function(b){
+    var arr=bkPips[b]||[];
+    return arr.length?(arr.reduce(function(a,x){return a+x;},0)/arr.length):0;
+  });
+
+  if (document.getElementById('chartPipByBank')) {
+    charts.pipBank = new Chart(document.getElementById('chartPipByBank'),{
+      type:'bar',
+      data:{labels:bkLabels,datasets:[{
+        label:'Avg Pips',
+        data:bkAvgPips.map(function(v){return+v.toFixed(2);}),
+        backgroundColor:bkAvgPips.map(function(v){return pipColorD(v,'EURUSD',.8);}),
+        borderRadius:4
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{ticks:TK,grid:GR},y:{ticks:TK,grid:GR,
+          title:{display:true,text:'Avg Pips',color:'#9ca3af',font:{size:10}}}},
+        animation:{onComplete:function(){
+          // Draw bank standard lines as annotations
+        }}}
+    });
+  }
+
+  if (document.getElementById('chartDealsByBank')) {
+    charts.dealsBank = new Chart(document.getElementById('chartDealsByBank'),{
+      type:'bar',
+      data:{labels:bkLabels,datasets:[{
+        label:'Deals',
+        data:bkNames.map(function(b){return bkMap[b]||0;}),
+        backgroundColor:'rgba(124,58,237,.6)',
+        borderRadius:4
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{ticks:TK,grid:GR},y:{ticks:TK,grid:GR,
+          title:{display:true,text:'Deal Count',color:'#9ca3af',font:{size:10}}}}}
+    });
+  }
+
   // ── Chart 8: EUR Volume + Rate dual axis (EUR/USD only) ──
   if (eu.length) {
     var euVols = eu.map(function(d){return parseFloat(d.amtCcy1)||0;});
@@ -2220,6 +2403,7 @@ function renderDashTable() {
       +'<td class="dim">'+(i+1)+'</td>'
       +'<td class="dim" style="white-space:nowrap">'+(d.date||'').slice(0,10)+' '+(d.time||'')+'</td>'
       +'<td class="dim">'+(d.pair||'EURUSD')+'</td>'
+      +'<td class="dim" style="font-weight:700;color:var(--accent);font-size:12px;font-family:IBM Plex Mono,monospace">'+(d.bank||'—')+'</td>'
       +'<td><span class="badge '+tc(d.typeLabel)+'">'+(d.typeLabel||'\u2014')+'</span></td>'
       +'<td class="r">'+(d.bankRate||'\u2014')+'</td>'
       +'<td class="r dim">'+(d.spotRate||'\u2014')+'</td>'
@@ -2498,6 +2682,148 @@ function showToast(msg) {
   setTimeout(function(){ t.classList.remove('show'); }, 3000);
 }
 
+/* ═══ BANK MASTER DATA ═══ */
+
+// Populate bank dropdown in deal form
+function populateBankDropdown() {
+  var sel = document.getElementById('dealBank');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">-- Select Bank --</option>';
+  getActiveBanks().forEach(function(b) {
+    var opt = document.createElement('option');
+    opt.value = b.id;
+    opt.textContent = b.name;
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+}
+
+// Bank pip analysis hint in deal entry
+function getBankPipHint(pips, pair) {
+  var bankId = document.getElementById('dealBank') ? document.getElementById('dealBank').value : '';
+  if (!bankId) return null;
+  var bank = getBankById(bankId);
+  if (!bank) return null;
+  var min = pair === 'USDZAR' ? bank.stdZARmin : bank.stdEUmin;
+  var max = pair === 'USDZAR' ? bank.stdZARmax : bank.stdEUmax;
+  var p = parseFloat(pips);
+  if (isNaN(p)) return null;
+  var verdict, cls;
+  if (p <= min) { verdict = 'Below '+bank.id+' standard — excellent'; cls = 'stellar'; }
+  else if (p <= max) { verdict = 'Within '+bank.id+' standard ('+min+'–'+max+' pips)'; cls = 'ok'; }
+  else { verdict = 'Above '+bank.id+' standard — push back'; cls = 'bad'; }
+  return { verdict: verdict, cls: cls, min: min, max: max, bank: bank };
+}
+
+// Bank Manager Modal
+function openBankManager() {
+  renderBankTable();
+  clearBankForm();
+  document.getElementById('bankModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeBankModal() {
+  document.getElementById('bankModal').style.display = 'none';
+  document.body.style.overflow = '';
+  populateBankDropdown();
+}
+function closeBankOutside(e) { if (e.target === document.getElementById('bankModal')) closeBankModal(); }
+
+function renderBankTable() {
+  var rows = bankMaster.map(function(b, i) {
+    return '<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:8px 10px;font-family:IBM Plex Mono,monospace;font-size:12px;font-weight:700;color:var(--accent)">'+b.id+'</td>'
+      +'<td style="padding:8px 10px;font-size:13px;color:var(--text2)">'+b.name+'</td>'
+      +'<td style="padding:8px 10px;font-size:12px;text-align:center;font-family:IBM Plex Mono,monospace">'+b.stdEUmin+'–'+b.stdEUmax+'</td>'
+      +'<td style="padding:8px 10px;font-size:12px;text-align:center;font-family:IBM Plex Mono,monospace">'+b.stdZARmin+'–'+b.stdZARmax+'</td>'
+      +'<td style="padding:8px 10px;text-align:center">'
+        +'<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px;color:var(--text3)">'
+          +'<input type="checkbox" '+(b.active?'checked':'')+' onchange="toggleBankActive('+i+',this.checked)"> Active'
+        +'</label></td>'
+      +'<td style="padding:8px 10px;white-space:nowrap">'
+        +'<button onclick="editBank('+i+')" style="font-size:11px;font-weight:600;padding:3px 10px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);border-radius:4px;cursor:pointer;margin-right:4px">Edit</button>'
+        +'<button onclick="deleteBank('+i+')" style="font-size:11px;font-weight:600;padding:3px 10px;border:1px solid var(--red-bd);background:var(--red-bg);color:var(--red);border-radius:4px;cursor:pointer">Del</button>'
+      +'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('bankTableWrap').innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<thead><tr style="background:var(--surface2)">'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase">ID</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase">Bank Name</th>'
+    +'<th style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase">EUR/USD Std</th>'
+    +'<th style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase">USD/ZAR Std</th>'
+    +'<th style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase">Status</th>'
+    +'<th style="padding:8px 10px;font-size:11px;color:var(--text3);font-weight:700">Actions</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function addOrUpdateBank() {
+  var id   = (document.getElementById('bk-id').value||'').trim().toUpperCase();
+  var name = (document.getElementById('bk-name').value||'').trim();
+  var eumin = parseFloat(document.getElementById('bk-eumin').value)||5;
+  var eumax = parseFloat(document.getElementById('bk-eumax').value)||7;
+  var zarmin= parseFloat(document.getElementById('bk-zarmin').value)||20;
+  var zarmax= parseFloat(document.getElementById('bk-zarmax').value)||25;
+  var editing = document.getElementById('bk-editing').value;
+
+  if (!id || !name) { alert('Bank ID and Name are required'); return; }
+  if (eumin >= eumax) { alert('EUR/USD min must be less than max'); return; }
+  if (zarmin >= zarmax) { alert('USD/ZAR min must be less than max'); return; }
+
+  var bankObj = {id:id, name:name, stdEUmin:eumin, stdEUmax:eumax, stdZARmin:zarmin, stdZARmax:zarmax, active:true};
+
+  if (editing !== '') {
+    bankMaster[parseInt(editing)] = Object.assign(bankMaster[parseInt(editing)], bankObj);
+  } else {
+    var existing = bankMaster.findIndex(function(b){ return b.id === id; });
+    if (existing >= 0) { bankMaster[existing] = Object.assign(bankMaster[existing], bankObj); }
+    else { bankMaster.push(bankObj); }
+  }
+  saveBanks(bankMaster);
+  renderBankTable();
+  clearBankForm();
+}
+
+function editBank(i) {
+  var b = bankMaster[i];
+  document.getElementById('bk-id').value     = b.id;
+  document.getElementById('bk-name').value   = b.name;
+  document.getElementById('bk-eumin').value  = b.stdEUmin;
+  document.getElementById('bk-eumax').value  = b.stdEUmax;
+  document.getElementById('bk-zarmin').value = b.stdZARmin;
+  document.getElementById('bk-zarmax').value = b.stdZARmax;
+  document.getElementById('bk-editing').value= i;
+}
+
+function deleteBank(i) {
+  if (!confirm('Remove '+bankMaster[i].name+'?')) return;
+  bankMaster.splice(i, 1);
+  saveBanks(bankMaster);
+  renderBankTable();
+  clearBankForm();
+}
+
+function toggleBankActive(i, val) {
+  bankMaster[i].active = val;
+  saveBanks(bankMaster);
+}
+
+function clearBankForm() {
+  ['bk-id','bk-name','bk-eumin','bk-eumax','bk-zarmin','bk-zarmax'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('bk-editing').value = '';
+}
+
+function resetBanksToDefault() {
+  if (!confirm('Reset all banks to default settings?')) return;
+  bankMaster = JSON.parse(JSON.stringify(DEFAULT_BANKS));
+  saveBanks(bankMaster);
+  renderBankTable();
+  clearBankForm();
+}
+
 /* ═══ EMAIL PREVIEW FROM HISTORY ═══ */
 function openEmailPreview(id) {
   var d = dealHistory.find(function(x){ return x.id === id; });
@@ -2616,6 +2942,7 @@ async function loadHistoryFromSource() {
 /* ═══ INIT ═══ */
 document.getElementById('valueDate').value=new Date().toISOString().split('T')[0];
 document.getElementById('amount').addEventListener('input',updateAmtWords);
+populateBankDropdown();
 setPair('EURUSD');
 fetchLiveRates(); // Start live rate fetch
 
