@@ -315,6 +315,18 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .em-cancel{padding:10px 18px;background:transparent;color:var(--text2);border:1.5px solid var(--border);border-radius:var(--rs);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
 .em-cancel:hover{background:var(--surface2);}
 
+/* ── DASHBOARD CONTROLS ── */
+.dash-pair-tab{padding:6px 16px;border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text3);transition:all .2s;}
+.dash-pair-tab.active{background:var(--accent);color:#fff;}
+.dash-pair-tab:not(.active):hover{background:var(--surface);color:var(--text2);}
+.period-btn{padding:5px 12px;border-radius:12px;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text3);transition:all .15s;}
+.period-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.period-btn:not(.active):hover{background:var(--surface2);color:var(--text2);}
+
+/* ── PAIR KPI MINI-STATS ── */
+.mini-stats.eurusd .ms-val{} 
+.mini-stats.usdzar .ms-val{}
+
 /* ══════════ DASHBOARD STYLES ══════════ */
 .dash-section-hdr{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;margin-top:28px;}
 .dash-section-hdr:first-child{margin-top:0;}
@@ -593,35 +605,170 @@ tbody tr:hover{background:var(--surface2);}
   <div id="dashNoData" class="dash-no-data">
     <div class="dash-no-data-icon">&#128202;</div>
     <div class="dash-no-data-title">No Deal Data Yet</div>
-    <div class="dash-no-data-sub">Confirm your first deal in the <b>Deal Entry</b> tab to start seeing analytics here. The dashboard updates automatically every time you switch to this tab.</div>
+    <div class="dash-no-data-sub">Confirm your first deal in the <b>Deal Entry</b> tab to start seeing analytics here.</div>
   </div>
   <div id="dashContent" style="display:none">
+
+    <!-- ── DASHBOARD CONTROLS ── -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+
+      <!-- Pair Tabs -->
+      <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button class="dash-pair-tab active" id="dptAll"    onclick="setDashPair('')">&#127760; All Pairs</button>
+        <button class="dash-pair-tab"        id="dptEURUSD" onclick="setDashPair('EURUSD')">EUR/USD</button>
+        <button class="dash-pair-tab"        id="dptUSDZAR" onclick="setDashPair('USDZAR')">USD/ZAR</button>
+      </div>
+
+      <!-- Period Filter -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:600;color:var(--text3)">Period:</span>
+        <button class="period-btn active" onclick="setPeriod('all',this)">All Time</button>
+        <button class="period-btn" onclick="setPeriod('today',this)">Today</button>
+        <button class="period-btn" onclick="setPeriod('week',this)">This Week</button>
+        <button class="period-btn" onclick="setPeriod('month',this)">This Month</button>
+        <button class="period-btn" onclick="setPeriod('custom',this)">Custom</button>
+        <div id="customDateRow" style="display:none;align-items:center;gap:4px">
+          <input type="date" id="periodFrom" class="fselect" style="padding:5px 8px;font-size:12px" onchange="applyCustomPeriod()">
+          <span style="color:var(--text3);font-size:12px">to</span>
+          <input type="date" id="periodTo"   class="fselect" style="padding:5px 8px;font-size:12px" onchange="applyCustomPeriod()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Bar -->
     <div class="summary-bar" id="summaryBar"></div>
-    <div class="dash-section-hdr"><div class="dash-section-title">Key Metrics</div><div class="dash-section-sub" id="dateRangeLabel"></div></div>
-    <div class="kpi-grid" id="kpiGrid"></div>
-    <div class="dash-section-hdr"><div class="dash-section-title">Pip Margin Breakdown</div><div class="dash-section-sub">Bank margin vs your 5-tier policy scale</div></div>
-    <div class="mini-stats" id="miniStats"></div>
-    <div class="chart-grid-2">
-      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Bank Rate Over Time</div><div class="chart-subtitle">Chronological rate history</div></div></div><div class="chart-wrap h240"><canvas id="chartRate"></canvas></div></div>
-      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Pip Margin Per Deal</div><div class="chart-subtitle">Colour-coded by verdict tier</div></div></div><div class="chart-wrap h240"><canvas id="chartPips"></canvas></div><div class="pip-legend"><div class="pl-item"><div class="pl-dot" style="background:#16a34a"></div>Impressive (&lt;5)</div><div class="pl-item"><div class="pl-dot" style="background:#059669"></div>Satisfactory (5-7)</div><div class="pl-item"><div class="pl-dot" style="background:#ea580c"></div>Concerning (7-8)</div><div class="pl-item"><div class="pl-dot" style="background:#d97706"></div>High (8-9)</div><div class="pl-item"><div class="pl-dot" style="background:#dc2626"></div>Red Flag (&gt;9)</div></div></div>
+
+    <!-- ── PAIR-SEPARATED KPI SECTIONS ── -->
+    <div id="kpiEURUSD" style="display:none">
+      <div class="dash-section-hdr">
+        <div class="dash-section-title" style="color:var(--accent)">EUR / USD</div>
+        <div class="dash-section-sub" id="kpiLabelEURUSD"></div>
+      </div>
+      <div class="kpi-grid" id="kpiGridEURUSD"></div>
+      <div class="mini-stats" id="miniStatsEURUSD"></div>
     </div>
-    <div class="chart-grid-3">
-      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Deal Type Split</div><div class="chart-subtitle">By count</div></div></div><div class="chart-wrap h180"><canvas id="chartType"></canvas></div></div>
-      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Pip Verdict Distribution</div><div class="chart-subtitle">Quality of rates achieved</div></div></div><div class="chart-wrap h180"><canvas id="chartVerdict"></canvas></div></div>
-      <div class="chart-card"><div class="chart-hdr"><div><div class="chart-title">Given By</div><div class="chart-subtitle">Deals per counterpart</div></div></div><div class="chart-wrap h180"><canvas id="chartGivenBy"></canvas></div></div>
+
+    <div id="kpiUSDZAR" style="display:none">
+      <div class="dash-section-hdr" style="margin-top:8px">
+        <div class="dash-section-title" style="color:#0d9488">USD / ZAR</div>
+        <div class="dash-section-sub" id="kpiLabelUSDZAR"></div>
+      </div>
+      <div class="kpi-grid" id="kpiGridUSDZAR"></div>
+      <div class="mini-stats" id="miniStatsUSDZAR"></div>
     </div>
-    <div class="chart-card full" style="margin-bottom:14px"><div class="chart-hdr"><div><div class="chart-title">EUR Volume &amp; Bank Rate (Dual Axis)</div><div class="chart-subtitle">Volume bars (left) &middot; Bank rate line (right)</div></div></div><div class="chart-wrap h280"><canvas id="chartVolRate"></canvas></div></div>
-    <div class="chart-card full" style="margin-bottom:24px"><div class="chart-hdr"><div><div class="chart-title">Running Average Pip Margin</div><div class="chart-subtitle">Trend over time with policy reference lines</div></div></div><div class="chart-wrap h200"><canvas id="chartAvgPip"></canvas></div></div>
-    <div class="dash-section-hdr"><div class="dash-section-title">All Deals</div></div>
+
+    <!-- ── CHARTS ROW 1: Rate trends (pair-separated) ── -->
+    <div class="dash-section-hdr" style="margin-top:20px">
+      <div class="dash-section-title">Rate &amp; Pip Trends</div>
+      <div class="dash-section-sub">Per currency pair &mdash; separate scales</div>
+    </div>
+    <div class="chart-grid-2" style="margin-bottom:14px">
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">EUR/USD Bank Rate Over Time</div><div class="chart-subtitle">Chronological — range approx 1.0&ndash;1.6</div></div></div>
+        <div class="chart-wrap h220"><canvas id="chartRateEURUSD"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">USD/ZAR Bank Rate Over Time</div><div class="chart-subtitle">Chronological — range approx 15&ndash;20</div></div></div>
+        <div class="chart-wrap h220"><canvas id="chartRateUSDZAR"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── CHARTS ROW 2: Pip margins per pair ── -->
+    <div class="chart-grid-2" style="margin-bottom:14px">
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">EUR/USD — Pip Margin Per Deal</div><div class="chart-subtitle">Policy: &lt;5 great &middot; 5-7 ok &middot; 7+ push back</div></div></div>
+        <div class="chart-wrap h220"><canvas id="chartPipsEURUSD"></canvas></div>
+        <div class="pip-legend" style="margin-top:8px">
+          <div class="pl-item"><div class="pl-dot" style="background:#16a34a"></div>&lt;5 Favourable</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#059669"></div>5-7 Satisfactory</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#ea580c"></div>7-8 Concerning</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#d97706"></div>8-9 High</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#dc2626"></div>&gt;9 Red Flag</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">USD/ZAR — Pip Margin Per Deal</div><div class="chart-subtitle">Policy: &lt;20 great &middot; 20-25 ok &middot; 25+ push back</div></div></div>
+        <div class="chart-wrap h220"><canvas id="chartPipsUSDZAR"></canvas></div>
+        <div class="pip-legend" style="margin-top:8px">
+          <div class="pl-item"><div class="pl-dot" style="background:#16a34a"></div>&lt;20 Favourable</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#059669"></div>20-25 Satisfactory</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#ea580c"></div>25-30 Concerning</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#d97706"></div>30-35 High</div>
+          <div class="pl-item"><div class="pl-dot" style="background:#dc2626"></div>&gt;35 Red Flag</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CHARTS ROW 3: Business analytics ── -->
+    <div class="dash-section-hdr">
+      <div class="dash-section-title">Business Analytics</div>
+      <div class="dash-section-sub">Deal performance, counterpart analysis &amp; volume</div>
+    </div>
+    <div class="chart-grid-3" style="margin-bottom:14px">
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Deals by Counterpart</div><div class="chart-subtitle">Who gave the rate &middot; pip avg shown</div></div></div>
+        <div class="chart-wrap h200"><canvas id="chartGivenBy"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Avg Pip by Counterpart</div><div class="chart-subtitle">Lower = better negotiation</div></div></div>
+        <div class="chart-wrap h200"><canvas id="chartPipByPerson"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Deal Type Split</div><div class="chart-subtitle">Sell vs Buy direction</div></div></div>
+        <div class="chart-wrap h200"><canvas id="chartType"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── CHARTS ROW 4: Volume & running avg ── -->
+    <div class="chart-grid-2" style="margin-bottom:14px">
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">EUR Volume + EUR/USD Rate</div><div class="chart-subtitle">Volume bars (left) &middot; Rate line (right)</div></div></div>
+        <div class="chart-wrap h240"><canvas id="chartVolRate"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Running Avg Pip Margin</div><div class="chart-subtitle">Trend over time &middot; policy lines shown &middot; per pair</div></div></div>
+        <div class="chart-wrap h240"><canvas id="chartAvgPip"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── CHART ROW 5: Best & Worst deals ── -->
+    <div class="chart-grid-2" style="margin-bottom:24px">
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Pip Verdict Distribution</div><div class="chart-subtitle">Quality of all rates achieved</div></div></div>
+        <div class="chart-wrap h200"><canvas id="chartVerdict"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div><div class="chart-title">Deals by Day of Week</div><div class="chart-subtitle">Activity pattern &middot; best &amp; worst pip days</div></div></div>
+        <div class="chart-wrap h200"><canvas id="chartByDay"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── BEST / WORST DEALS TABLE ── -->
+    <div class="dash-section-hdr">
+      <div class="dash-section-title">Deal Intelligence</div>
+      <div class="dash-section-sub">Best rates, worst rates &amp; full register</div>
+    </div>
+    <div class="chart-grid-2" style="margin-bottom:14px">
+      <div class="table-card">
+        <div class="table-card-hdr"><div class="table-card-title">&#11088; Top 5 Best Rates (Lowest Pips)</div></div>
+        <div class="twrap"><table id="tblBest"><thead><tr><th>Date</th><th>Type</th><th class="r">Bank Rate</th><th class="r">Pips</th><th>Given By</th></tr></thead><tbody id="tblBestBody"></tbody></table></div>
+      </div>
+      <div class="table-card">
+        <div class="table-card-hdr"><div class="table-card-title">&#128683; Top 5 Worst Rates (Highest Pips)</div></div>
+        <div class="twrap"><table id="tblWorst"><thead><tr><th>Date</th><th>Type</th><th class="r">Bank Rate</th><th class="r">Pips</th><th>Given By</th></tr></thead><tbody id="tblWorstBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ── FULL DEAL TABLE ── -->
     <div class="filter-row">
       <span style="font-size:12px;font-weight:600;color:#9ca3af">Filter:</span>
-      <select class="fselect" id="ftType" onchange="renderDashTable()"><option value="">All Deal Types</option><option>SELL EUR / BUY USD</option><option>BUY EUR / SELL USD</option><option>SELL USD / BUY EUR</option><option>BUY USD / SELL EUR</option><option>SELL USD / BUY ZAR</option><option>BUY USD / SELL ZAR</option></select>
-      <select class="fselect" id="ftVerdict" onchange="renderDashTable()"><option value="">All Verdicts</option><option value="stellar">Impressive</option><option value="ok">Satisfactory</option><option value="caution">Concerning</option><option value="warn">High Margin</option><option value="bad">Red Flag</option></select>
-      <select class="fselect" id="ftPair" onchange="renderDashTable()"><option value="">All Pairs</option><option value="EURUSD">EUR/USD</option><option value="USDZAR">USD/ZAR</option></select>
+      <select class="fselect" id="ftType"    onchange="renderDashTable()"><option value="">All Deal Types</option><option>SELL EUR / BUY USD</option><option>BUY EUR / SELL USD</option><option>SELL USD / BUY EUR</option><option>BUY USD / SELL EUR</option><option>SELL USD / BUY ZAR</option><option>BUY USD / SELL ZAR</option></select>
+      <select class="fselect" id="ftVerdict" onchange="renderDashTable()"><option value="">All Verdicts</option><option value="stellar">Favourable</option><option value="ok">Satisfactory</option><option value="caution">Concerning</option><option value="warn">High Margin</option><option value="bad">Red Flag</option></select>
+      <select class="fselect" id="ftPair"    onchange="renderDashTable()"><option value="">All Pairs</option><option value="EURUSD">EUR/USD</option><option value="USDZAR">USD/ZAR</option></select>
       <input class="fsearch" type="text" id="fsSearch" placeholder="Search deal no, given by..." oninput="renderDashTable()">
       <span class="filter-count" id="filterCount"></span>
     </div>
-    <div class="table-card">
+    <div class="table-card" style="margin-bottom:14px">
       <div class="table-card-hdr"><div class="table-card-title">Deal Register</div><div style="font-size:11px;color:#9ca3af">Click column headers to sort</div></div>
       <div class="twrap"><table><thead><tr>
         <th onclick="sortDashTable('date')">#</th>
@@ -1664,95 +1811,391 @@ function saveEdit() {
 }
 
 /* ═══ DASHBOARD ═══ */
-function renderDashboard() {
-  var n=dealHistory.length;
-  if (!n){document.getElementById('dashNoData').style.display='block';document.getElementById('dashContent').style.display='none';return;}
-  document.getElementById('dashNoData').style.display='none';
-  document.getElementById('dashContent').style.display='block';
-  buildSummaryBar(); buildKPIs(); buildMiniStats(); buildDashCharts(); renderDashTable();
+var dashPairFilter   = '';   // '' | 'EURUSD' | 'USDZAR'
+var dashPeriodFilter = 'all'; // 'all'|'today'|'week'|'month'|'custom'
+var dashDateFrom     = null;
+var dashDateTo       = null;
+
+function setDashPair(pair) {
+  dashPairFilter = pair;
+  ['dptAll','dptEURUSD','dptUSDZAR'].forEach(function(id){
+    document.getElementById(id).classList.remove('active');
+  });
+  var map = {'':'dptAll','EURUSD':'dptEURUSD','USDZAR':'dptUSDZAR'};
+  document.getElementById(map[pair]).classList.add('active');
+  buildAll();
 }
 
-function fmtK(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(0);}
-function pipColorD(p,a){a=a||1;var n=parseFloat(p);if(n<5)return 'rgba(22,163,74,'+a+')';if(n<=7)return 'rgba(5,150,105,'+a+')';if(n<=8)return 'rgba(234,88,12,'+a+')';if(n<=9)return 'rgba(217,119,6,'+a+')';return 'rgba(220,38,38,'+a+')';}
-function clsToV(c){return{stellar:'Impressive',ok:'Satisfactory',caution:'Concerning',warn:'High Margin',bad:'Red Flag'}[c]||c;}
-function sortedChron(){return dealHistory.slice().reverse();}
+function setPeriod(p, btn) {
+  dashPeriodFilter = p;
+  document.querySelectorAll('.period-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var cdr = document.getElementById('customDateRow');
+  cdr.style.display = (p === 'custom') ? 'flex' : 'none';
+  if (p !== 'custom') buildAll();
+}
 
-function buildSummaryBar(){
-  var n=dealHistory.length;
-  var pips=dealHistory.map(function(d){return parseFloat(d.pips)||0;});
-  var avgPip=(pips.reduce(function(a,b){return a+b;},0)/pips.length).toFixed(2);
-  var totalEur=dealHistory.filter(function(d){return(d.ccy1||'EUR')==='EUR';}).reduce(function(s,d){return s+(parseFloat(d.amtCcy1)||0);},0);
-  var totalUsd=dealHistory.reduce(function(s,d){return s+(parseFloat(d.amtCcy2)||0);},0);
-  var dates=dealHistory.map(function(d){return d.date||'';}).filter(Boolean).sort();
-  var range=dates.length?dates[0].slice(0,10)+' \u2014 '+dates[dates.length-1].slice(0,10):'';
-  var within=dealHistory.filter(function(d){var p=parseFloat(d.pips);return p>=5&&p<=7;}).length;
-  document.getElementById('summaryBar').innerHTML=
-    sb2('Total Deals',n)+div2()+sb2('EUR Volume',fmtK(totalEur))+div2()+sb2('USD/ZAR Vol',fmtK(totalUsd))+div2()+sb2('Avg Pip Margin',avgPip)+div2()+sb2('Satisfactory',Math.round(within/n*100)+'%')+div2()+sb2('Period',range);
-  document.getElementById('dateRangeLabel').textContent=range;
+function applyCustomPeriod() {
+  dashDateFrom = document.getElementById('periodFrom').value;
+  dashDateTo   = document.getElementById('periodTo').value;
+  if (dashDateFrom && dashDateTo) buildAll();
+}
+
+function getFilteredDeals() {
+  var now   = new Date();
+  var today = now.toLocaleDateString('en-GB');
+  return dealHistory.filter(function(d) {
+    // Pair filter
+    if (dashPairFilter && (d.pair||'EURUSD') !== dashPairFilter) return false;
+    // Period filter
+    if (dashPeriodFilter === 'today') {
+      if ((d.date||'') !== today) return false;
+    } else if (dashPeriodFilter === 'week') {
+      var dd = parseDate(d.date);
+      if (!dd) return false;
+      var diff = (now - dd) / 86400000;
+      if (diff > 7) return false;
+    } else if (dashPeriodFilter === 'month') {
+      var dd2 = parseDate(d.date);
+      if (!dd2) return false;
+      if (dd2.getMonth() !== now.getMonth() || dd2.getFullYear() !== now.getFullYear()) return false;
+    } else if (dashPeriodFilter === 'custom' && dashDateFrom && dashDateTo) {
+      var dd3 = parseDate(d.date);
+      if (!dd3) return false;
+      var from = new Date(dashDateFrom); var to = new Date(dashDateTo);
+      to.setHours(23,59,59);
+      if (dd3 < from || dd3 > to) return false;
+    }
+    return true;
+  });
+}
+
+function parseDate(ddmmyyyy) {
+  if (!ddmmyyyy) return null;
+  var p = ddmmyyyy.split('/');
+  if (p.length === 3) return new Date(p[2]+'-'+p[1]+'-'+p[0]);
+  return new Date(ddmmyyyy);
+}
+
+function fmtDateLabel(d) {
+  var dd = parseDate(d.date);
+  if (!dd) return d.date || '';
+  return dd.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+}
+
+function renderDashboard() {
+  var n = dealHistory.length;
+  if (!n) {
+    document.getElementById('dashNoData').style.display = 'block';
+    document.getElementById('dashContent').style.display = 'none';
+    return;
+  }
+  document.getElementById('dashNoData').style.display = 'none';
+  document.getElementById('dashContent').style.display = 'block';
+  buildAll();
+}
+
+function buildAll() {
+  var deals = getFilteredDeals();
+  if (!deals.length) {
+    document.getElementById('summaryBar').innerHTML = '<div class="sb-item"><div class="sb-label">No deals</div><div class="sb-val">0</div></div>';
+    Object.values(charts).forEach(function(c){ c.destroy(); });
+    charts = {};
+    return;
+  }
+  buildSummaryBar(deals);
+  buildKPIsByCcy(deals);
+  buildDashCharts(deals);
+  renderBestWorst(deals);
+  renderDashTable();
+}
+
+function fmtK(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return(+n).toFixed(0);}
+
+function pipClsForPair(p, pair) {
+  if ((pair||'EURUSD')==='USDZAR') return p<20?'stellar':p<=25?'ok':p<=30?'caution':p<=35?'warn':'bad';
+  return p<5?'stellar':p<=7?'ok':p<=8?'caution':p<=9?'warn':'bad';
+}
+
+function pipColorD(p, pair, a) {
+  a = a||1;
+  var cls = pipClsForPair(p, pair);
+  if (cls==='stellar') return 'rgba(22,163,74,'+a+')';
+  if (cls==='ok')      return 'rgba(5,150,105,'+a+')';
+  if (cls==='caution') return 'rgba(234,88,12,'+a+')';
+  if (cls==='warn')    return 'rgba(217,119,6,'+a+')';
+  return 'rgba(220,38,38,'+a+')';
+}
+
+function clsToV(c){return{stellar:'Favourable',ok:'Satisfactory',caution:'Concerning',warn:'High Margin',bad:'Red Flag'}[c]||c;}
+
+function buildSummaryBar(deals) {
+  var eu = deals.filter(function(d){return (d.pair||'EURUSD')==='EURUSD';});
+  var za = deals.filter(function(d){return (d.pair||'EURUSD')==='USDZAR';});
+  var pips = deals.map(function(d){return parseFloat(d.pips)||0;});
+  var avgP = pips.length ? (pips.reduce(function(a,b){return a+b;},0)/pips.length).toFixed(2) : '0';
+  var dates = deals.map(function(d){return d.date||'';}).filter(Boolean).sort();
+  var range = dates.length ? dates[0]+' — '+dates[dates.length-1] : '';
+  var eurVol = eu.reduce(function(s,d){return s+(parseFloat(d.amtCcy1)||0);},0);
+  var zarVol = za.reduce(function(s,d){return s+(parseFloat(d.amtCcy2)||0);},0);
+  document.getElementById('summaryBar').innerHTML =
+    sb2('Total Deals',deals.length)+div2()+
+    sb2('EUR/USD',eu.length+' deals')+div2()+
+    sb2('EUR Volume',fmtK(eurVol))+div2()+
+    sb2('USD/ZAR',za.length+' deals')+div2()+
+    sb2('ZAR Volume',fmtK(zarVol))+div2()+
+    sb2('Avg Pip',avgP)+div2()+
+    sb2('Period',range);
 }
 function sb2(l,v){return '<div class="sb-item"><div class="sb-label">'+l+'</div><div class="sb-val">'+v+'</div></div>';}
 function div2(){return '<div class="sb-div"></div>';}
 
-function buildKPIs(){
-  var n=dealHistory.length;
-  var pips=dealHistory.map(function(d){return parseFloat(d.pips)||0;});
-  var avgP=(pips.reduce(function(a,b){return a+b;},0)/pips.length).toFixed(2);
-  var minP=Math.min.apply(null,pips).toFixed(2); var maxP=Math.max.apply(null,pips).toFixed(2);
-  var stellar=dealHistory.filter(function(d){return d.pipCls==='stellar';}).length;
-  var ok=dealHistory.filter(function(d){return d.pipCls==='ok';}).length;
-  var abv=dealHistory.filter(function(d){return d.pipCls==='caution'||d.pipCls==='warn'||d.pipCls==='bad';}).length;
-  var totalEur=dealHistory.filter(function(d){return(d.ccy1||'EUR')==='EUR';}).reduce(function(s,d){return s+(parseFloat(d.amtCcy1)||0);},0);
-  var totalUsd=dealHistory.filter(function(d){return(d.ccy2||'USD')==='USD';}).reduce(function(s,d){return s+(parseFloat(d.amtCcy2)||0);},0);
-  var sellers=dealHistory.filter(function(d){var t=(d.typeLabel||'').toLowerCase();return t.includes('sell eur')||t.includes('buy usd')||t.includes('sell usd/buy z');}).length;
-  var ks=[
-    {l:'Total Deals',v:n,c:'kblue',s:'all pairs'},
+function buildKPIsByCcy(deals) {
+  var eu = deals.filter(function(d){return (d.pair||'EURUSD')==='EURUSD';});
+  var za = deals.filter(function(d){return (d.pair||'EURUSD')==='USDZAR';});
+  // Show/hide pair blocks based on filter
+  var showEU = (!dashPairFilter || dashPairFilter==='EURUSD') && eu.length > 0;
+  var showZA = (!dashPairFilter || dashPairFilter==='USDZAR') && za.length > 0;
+  document.getElementById('kpiEURUSD').style.display = showEU ? 'block' : 'none';
+  document.getElementById('kpiUSDZAR').style.display = showZA ? 'block' : 'none';
+  if (showEU) buildPairKPIs(eu,'EURUSD','kpiGridEURUSD','miniStatsEURUSD','kpiLabelEURUSD');
+  if (showZA) buildPairKPIs(za,'USDZAR','kpiGridUSDZAR','miniStatsUSDZAR','kpiLabelUSDZAR');
+}
+
+function buildPairKPIs(deals, pair, gridId, statsId, labelId) {
+  var n = deals.length;
+  var isZAR = pair==='USDZAR';
+  var pips = deals.map(function(d){return parseFloat(d.pips)||0;});
+  var avgP = (pips.reduce(function(a,b){return a+b;},0)/n).toFixed(2);
+  var minP = Math.min.apply(null,pips).toFixed(2);
+  var maxP = Math.max.apply(null,pips).toFixed(2);
+  var stellar=deals.filter(function(d){return pipClsForPair(parseFloat(d.pips),pair)==='stellar';}).length;
+  var ok=deals.filter(function(d){return pipClsForPair(parseFloat(d.pips),pair)==='ok';}).length;
+  var abv=deals.filter(function(d){var c=pipClsForPair(parseFloat(d.pips),pair);return c==='caution'||c==='warn'||c==='bad';}).length;
+  var vol1=deals.reduce(function(s,d){return s+(parseFloat(d.amtCcy1)||0);},0);
+  var vol2=deals.reduce(function(s,d){return s+(parseFloat(d.amtCcy2)||0);},0);
+  var ccy1=isZAR?'USD':'EUR'; var ccy2=isZAR?'ZAR':'USD';
+  var t1=isZAR?20:5; var t2=isZAR?25:7;
+  var dates = deals.map(function(d){return d.date||'';}).filter(Boolean).sort();
+  if (labelId) document.getElementById(labelId).textContent = dates.length ? dates[0]+' — '+dates[dates.length-1] : '';
+  var ks = [
+    {l:'Deals',v:n,c:'kblue',s:pair==='EURUSD'?'EUR/USD pair':'USD/ZAR pair'},
     {l:'Avg Pip Margin',v:avgP,c:'kteal',s:'bank commission avg'},
-    {l:'Best (pips)',v:minP,c:'kgreen',s:'lowest margin seen'},
-    {l:'Worst (pips)',v:maxP,c:'kred',s:'highest margin seen'},
-    {l:'Impressive',v:stellar+' ('+Math.round(stellar/n*100)+'%)',c:'kgreen',s:'< 5 pip margin'},
-    {l:'Satisfactory',v:ok+' ('+Math.round(ok/n*100)+'%)',c:'kteal',s:'5\u20137 pip margin'},
-    {l:'Above Policy',v:abv+' ('+Math.round(abv/n*100)+'%)',c:'kamber',s:'7+ pip margin'},
-    {l:'EUR Volume',v:fmtK(totalEur),c:'kblue',s:'EUR transacted'},
-    {l:'USD Volume',v:fmtK(totalUsd),c:'kteal',s:'USD side'},
-    {l:'Sell / Buy',v:sellers+' / '+(n-sellers),c:'korange',s:'sell / buy base ccy'}
+    {l:'Best Rate (pips)',v:minP,c:'kgreen',s:'lowest margin — best deal'},
+    {l:'Worst Rate (pips)',v:maxP,c:'kred',s:'highest margin — worst deal'},
+    {l:'Favourable (<'+t1+')',v:stellar+' ('+Math.round(stellar/n*100)+'%)',c:'kgreen',s:'below threshold — win for GRF'},
+    {l:'Satisfactory ('+t1+'–'+t2+')',v:ok+' ('+Math.round(ok/n*100)+'%)',c:'kteal',s:'within acceptable range'},
+    {l:'Above Policy (>'+t2+')',v:abv+' ('+Math.round(abv/n*100)+'%)',c:'kred',s:'needs negotiation'},
+    {l:ccy1+' Volume',v:fmtK(vol1),c:'kblue',s:ccy1+' transacted'},
+    {l:ccy2+' Volume',v:fmtK(vol2),c:'kamber',s:ccy2+' side'},
   ];
-  document.getElementById('kpiGrid').innerHTML=ks.map(function(k){
+  document.getElementById(gridId).innerHTML = ks.map(function(k){
     return '<div class="kpi '+k.c+'"><div class="kpi-label">'+k.l+'</div><div class="kpi-val '+k.c+'">'+k.v+'</div><div class="kpi-sub">'+k.s+'</div></div>';
   }).join('');
-}
-
-function buildMiniStats(){
-  var n=dealHistory.length;
-  var tiers=[{k:'stellar',l:'Impressive',s:'< 5 pips',c:'#16a34a'},{k:'ok',l:'Satisfactory',s:'5\u20137 pips',c:'#059669'},{k:'caution',l:'Concerning',s:'7\u20138 pips',c:'#ea580c'},{k:'warn',l:'High Margin',s:'8\u20139 pips',c:'#d97706'},{k:'bad',l:'Red Flag',s:'> 9 pips',c:'#dc2626'}];
-  document.getElementById('miniStats').innerHTML=tiers.map(function(t){
-    var cnt=dealHistory.filter(function(d){return d.pipCls===t.k;}).length;
-    return '<div class="ms-item"><div class="ms-label">'+t.l+'</div><div class="ms-val" style="color:'+t.c+'">'+cnt+'</div><div class="ms-pct">'+Math.round(cnt/n*100)+'% &middot; '+t.s+'</div></div>';
+  var tiers = isZAR
+    ? [{k:'stellar',l:'Favourable',s:'< 20 pips',c:'#16a34a'},{k:'ok',l:'Satisfactory',s:'20–25 pips',c:'#059669'},{k:'caution',l:'Concerning',s:'25–30 pips',c:'#ea580c'},{k:'warn',l:'High Margin',s:'30–35 pips',c:'#d97706'},{k:'bad',l:'Red Flag',s:'> 35 pips',c:'#dc2626'}]
+    : [{k:'stellar',l:'Favourable',s:'< 5 pips',c:'#16a34a'},{k:'ok',l:'Satisfactory',s:'5–7 pips',c:'#059669'},{k:'caution',l:'Concerning',s:'7–8 pips',c:'#ea580c'},{k:'warn',l:'High Margin',s:'8–9 pips',c:'#d97706'},{k:'bad',l:'Red Flag',s:'> 9 pips',c:'#dc2626'}];
+  document.getElementById(statsId).innerHTML = tiers.map(function(t){
+    var cnt=deals.filter(function(d){return pipClsForPair(parseFloat(d.pips),pair)===t.k;}).length;
+    return '<div class="ms-item"><div class="ms-label">'+t.l+'</div><div class="ms-val" style="color:'+t.c+'">'+cnt+'</div><div class="ms-pct">'+Math.round(cnt/n*100)+'% · '+t.s+'</div></div>';
   }).join('');
 }
 
-function buildDashCharts(){
+function buildDashCharts(deals) {
   Object.values(charts).forEach(function(c){c.destroy();}); charts={};
-  var deals=sortedChron();
-  var labels=deals.map(function(d,i){return d.date?d.date.slice(5):'#'+(i+1);});
-  var rates=deals.map(function(d){return parseFloat(d.bankRate)||null;});
-  var pipsArr=deals.map(function(d){return parseFloat(d.pips)||0;});
-  var eurs=deals.map(function(d){return parseFloat(d.amtCcy1)||0;});
-  var TK={font:{family:"'IBM Plex Mono'",size:10},color:'#9ca3af'};
-  var SC={x:{ticks:Object.assign({},TK,{maxTicksLimit:10}),grid:{color:'#f3f4f6'}},y:{ticks:TK,grid:{color:'#f3f4f6'}}};
-  charts.rate=new Chart(document.getElementById('chartRate'),{type:'line',data:{labels:labels,datasets:[{data:rates,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',tension:.3,pointRadius:3,pointBackgroundColor:'#3b82f6',fill:true,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:SC}});
-  charts.pips=new Chart(document.getElementById('chartPips'),{type:'bar',data:{labels:labels,datasets:[{data:pipsArr,backgroundColor:pipsArr.map(function(p){return pipColorD(p,.75);}),borderColor:pipsArr.map(function(p){return pipColorD(p,1);}),borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:10}),grid:{color:'#f3f4f6'}},y:{ticks:TK,grid:{color:'#f3f4f6'}}}}});
-  var typeMap={};dealHistory.forEach(function(d){var t=d.typeLabel||'Unknown';typeMap[t]=(typeMap[t]||0)+1;});
-  var tColors=['#3b82f6','#059669','#ea580c','#d97706','#7c3aed','#0891b2'];
-  var LEG={legend:{display:true,position:'bottom',labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:8,boxWidth:10}}};
-  charts.type=new Chart(document.getElementById('chartType'),{type:'doughnut',data:{labels:Object.keys(typeMap),datasets:[{data:Object.values(typeMap),backgroundColor:tColors.slice(0,Object.keys(typeMap).length),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:LEG}});
-  var vMap={stellar:0,ok:0,caution:0,warn:0,bad:0};dealHistory.forEach(function(d){if(vMap[d.pipCls]!==undefined)vMap[d.pipCls]++;});
-  charts.verdict=new Chart(document.getElementById('chartVerdict'),{type:'doughnut',data:{labels:['Impressive','Satisfactory','Concerning','High Margin','Red Flag'],datasets:[{data:[vMap.stellar,vMap.ok,vMap.caution,vMap.warn,vMap.bad],backgroundColor:['#16a34a','#059669','#ea580c','#d97706','#dc2626'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:LEG}});
-  var gMap={};dealHistory.forEach(function(d){var g=d.givenBy||'Unknown';gMap[g]=(gMap[g]||0)+1;});
-  charts.givenBy=new Chart(document.getElementById('chartGivenBy'),{type:'doughnut',data:{labels:Object.keys(gMap),datasets:[{data:Object.values(gMap),backgroundColor:['#3b82f6','#7c3aed','#0891b2','#db2777','#65a30d'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:LEG}});
-  charts.volRate=new Chart(document.getElementById('chartVolRate'),{type:'bar',data:{labels:labels,datasets:[{label:'Volume (CCY1)',type:'bar',data:eurs,backgroundColor:'rgba(59,130,246,.15)',borderColor:'rgba(59,130,246,.4)',borderWidth:1,borderRadius:3,yAxisID:'y'},{label:'Bank Rate',type:'line',data:rates,borderColor:'#dc2626',backgroundColor:'transparent',tension:.3,pointRadius:2,borderWidth:2,yAxisID:'y2'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:12,boxWidth:12}}},scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:12}),grid:{color:'#f3f4f6'}},y:{position:'left',ticks:TK,grid:{color:'#f3f4f6'},title:{display:true,text:'CCY1 Volume',color:'#9ca3af',font:{size:10}}},y2:{position:'right',ticks:TK,grid:{display:false},title:{display:true,text:'Bank Rate',color:'#9ca3af',font:{size:10}}}}}});
-  var runAvg=[];var sum=0;deals.forEach(function(d,i){sum+=parseFloat(d.pips)||0;runAvg.push(+(sum/(i+1)).toFixed(3));});
-  charts.avgPip=new Chart(document.getElementById('chartAvgPip'),{type:'line',data:{labels:labels,datasets:[{label:'Running Avg Pips',data:runAvg,borderColor:'#7c3aed',backgroundColor:'rgba(124,58,237,.06)',fill:true,tension:.3,pointRadius:2,borderWidth:2},{label:'Policy Max (7)',data:Array(deals.length).fill(7),borderColor:'rgba(234,88,12,.5)',borderDash:[6,3],pointRadius:0,borderWidth:1.5,fill:false},{label:'Target Max (5)',data:Array(deals.length).fill(5),borderColor:'rgba(5,150,105,.5)',borderDash:[6,3],pointRadius:0,borderWidth:1.5,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:12,boxWidth:12}}},scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:12}),grid:{color:'#f3f4f6'}},y:{ticks:TK,grid:{color:'#f3f4f6'},min:0,title:{display:true,text:'Avg Pips',color:'#9ca3af',font:{size:10}}}}}});
+  var eu = deals.filter(function(d){return (d.pair||'EURUSD')==='EURUSD';}).slice().reverse();
+  var za = deals.filter(function(d){return (d.pair||'EURUSD')==='USDZAR';}).slice().reverse();
+  var all = deals.slice().reverse();
+  var TK = {font:{family:"'IBM Plex Mono'",size:10},color:'#9ca3af'};
+  var TKLABEL = {font:{family:"'IBM Plex Mono'",size:11},color:'#9ca3af'};
+  var GR = {color:'#f3f4f6'};
+  var LEG = {display:true,position:'bottom',labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:8,boxWidth:10}};
+
+  function makeScales(xticks, ytitle) {
+    return {
+      x:{ ticks:Object.assign({},TK,{maxTicksLimit:10}), grid:GR },
+      y:{ ticks:TK, grid:GR, title:ytitle?{display:true,text:ytitle,color:'#9ca3af',font:{size:10}}:undefined }
+    };
+  }
+
+  // Date label formatter — show dd/Mon not just year
+  function dlbl(d) {
+    var dt = parseDate(d.date);
+    if (!dt) return d.date||'';
+    return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+  }
+
+  // ── Chart 1: EUR/USD Rate ──
+  if (eu.length) {
+    var euLbls = eu.map(dlbl);
+    var euRates = eu.map(function(d){return parseFloat(d.bankRate)||null;});
+    charts.rateEU = new Chart(document.getElementById('chartRateEURUSD'),{
+      type:'line',
+      data:{labels:euLbls,datasets:[{data:euRates,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',tension:.3,pointRadius:4,pointBackgroundColor:'#3b82f6',fill:true,borderWidth:2,label:'EUR/USD'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:makeScales(true,'Rate')}
+    });
+  }
+
+  // ── Chart 2: USD/ZAR Rate ──
+  if (za.length) {
+    var zaLbls = za.map(dlbl);
+    var zaRates = za.map(function(d){return parseFloat(d.bankRate)||null;});
+    charts.rateZA = new Chart(document.getElementById('chartRateUSDZAR'),{
+      type:'line',
+      data:{labels:zaLbls,datasets:[{data:zaRates,borderColor:'#0d9488',backgroundColor:'rgba(13,148,136,.08)',tension:.3,pointRadius:4,pointBackgroundColor:'#0d9488',fill:true,borderWidth:2,label:'USD/ZAR'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:makeScales(true,'Rate')}
+    });
+  }
+
+  // ── Chart 3: EUR/USD Pips ──
+  if (eu.length) {
+    var euPips = eu.map(function(d){return parseFloat(d.pips)||0;});
+    charts.pipsEU = new Chart(document.getElementById('chartPipsEURUSD'),{
+      type:'bar',
+      data:{labels:eu.map(dlbl),datasets:[{data:euPips,backgroundColor:euPips.map(function(p){return pipColorD(p,'EURUSD',.8);}),borderRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:10}),grid:GR},y:{ticks:TK,grid:GR,title:{display:true,text:'Pips',color:'#9ca3af',font:{size:10}}}}}
+    });
+  }
+
+  // ── Chart 4: USD/ZAR Pips ──
+  if (za.length) {
+    var zaPips = za.map(function(d){return parseFloat(d.pips)||0;});
+    charts.pipsZA = new Chart(document.getElementById('chartPipsUSDZAR'),{
+      type:'bar',
+      data:{labels:za.map(dlbl),datasets:[{data:zaPips,backgroundColor:zaPips.map(function(p){return pipColorD(p,'USDZAR',.8);}),borderRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:10}),grid:GR},y:{ticks:TK,grid:GR,title:{display:true,text:'Pips',color:'#9ca3af',font:{size:10}}}}}
+    });
+  }
+
+  // ── Chart 5: Deals by Given By (bar) ──
+  var gMap={},gPips={};
+  deals.forEach(function(d){var g=d.givenBy||'Unknown';gMap[g]=(gMap[g]||0)+1;if(!gPips[g])gPips[g]=[];gPips[g].push(parseFloat(d.pips)||0);});
+  var gNames=Object.keys(gMap);
+  charts.givenBy = new Chart(document.getElementById('chartGivenBy'),{
+    type:'bar',
+    data:{labels:gNames,datasets:[{label:'Deals',data:gNames.map(function(g){return gMap[g];}),backgroundColor:'rgba(59,130,246,.7)',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:TK,grid:GR},y:{ticks:TK,grid:GR}}}
+  });
+
+  // ── Chart 6: Avg Pip by Person ──
+  var gAvgs=gNames.map(function(g){return gPips[g].length?(gPips[g].reduce(function(a,b){return a+b;},0)/gPips[g].length):0;});
+  charts.pipPerson = new Chart(document.getElementById('chartPipByPerson'),{
+    type:'bar',
+    data:{labels:gNames,datasets:[{label:'Avg Pips',data:gAvgs.map(function(v){return+v.toFixed(2);}),backgroundColor:gAvgs.map(function(v){return pipColorD(v,'EURUSD',.8);}),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:TK,grid:GR},y:{ticks:TK,grid:GR,title:{display:true,text:'Avg Pips',color:'#9ca3af',font:{size:10}}}}}
+  });
+
+  // ── Chart 7: Deal Type Split ──
+  var typeMap={};deals.forEach(function(d){var t=d.typeLabel||d.type||'Unknown';typeMap[t]=(typeMap[t]||0)+1;});
+  var tColors=['#3b82f6','#059669','#ea580c','#d97706','#7c3aed','#0891b2','#db2777'];
+  charts.type = new Chart(document.getElementById('chartType'),{
+    type:'doughnut',
+    data:{labels:Object.keys(typeMap),datasets:[{data:Object.values(typeMap),backgroundColor:tColors.slice(0,Object.keys(typeMap).length),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:LEG}}
+  });
+
+  // ── Chart 8: EUR Volume + Rate dual axis (EUR/USD only) ──
+  if (eu.length) {
+    var euVols = eu.map(function(d){return parseFloat(d.amtCcy1)||0;});
+    charts.volRate = new Chart(document.getElementById('chartVolRate'),{
+      type:'bar',
+      data:{labels:eu.map(dlbl),datasets:[
+        {label:'EUR Volume',type:'bar',data:euVols,backgroundColor:'rgba(59,130,246,.2)',borderRadius:3,yAxisID:'y'},
+        {label:'EUR/USD Rate',type:'line',data:eu.map(function(d){return parseFloat(d.bankRate)||null;}),borderColor:'#dc2626',tension:.3,pointRadius:3,borderWidth:2,yAxisID:'y2',fill:false}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEG},
+        scales:{x:{ticks:Object.assign({},TK,{maxTicksLimit:12}),grid:GR},
+          y:{position:'left',ticks:TK,grid:GR,title:{display:true,text:'EUR Volume',color:'#9ca3af',font:{size:10}}},
+          y2:{position:'right',ticks:TK,grid:{display:false},title:{display:true,text:'Rate',color:'#9ca3af',font:{size:10}}}}}
+    });
+  } else {
+    document.getElementById('chartVolRate').parentElement.parentElement.innerHTML = '<div class="chart-hdr"><div><div class="chart-title">EUR Volume + EUR/USD Rate</div></div></div><div style="padding:30px;text-align:center;color:#9ca3af;font-size:13px">No EUR/USD deals in selection</div>';
+  }
+
+  // ── Chart 9: Running Avg Pip per pair ──
+  var dsAvg = [];
+  if (eu.length) {
+    var euRunAvg=[]; var euSum=0;
+    eu.forEach(function(d,i){euSum+=parseFloat(d.pips)||0;euRunAvg.push(+(euSum/(i+1)).toFixed(3));});
+    dsAvg.push({label:'EUR/USD Avg Pips',data:euRunAvg,borderColor:'#3b82f6',tension:.3,pointRadius:2,borderWidth:2,fill:false});
+    dsAvg.push({label:'EUR/USD Policy (7)',data:Array(eu.length).fill(7),borderColor:'rgba(234,88,12,.5)',borderDash:[5,3],pointRadius:0,borderWidth:1.5,fill:false});
+  }
+  if (za.length) {
+    var zaRunAvg=[]; var zaSum=0;
+    za.forEach(function(d,i){zaSum+=parseFloat(d.pips)||0;zaRunAvg.push(+(zaSum/(i+1)).toFixed(2));});
+    dsAvg.push({label:'USD/ZAR Avg Pips',data:zaRunAvg,borderColor:'#0d9488',tension:.3,pointRadius:2,borderWidth:2,fill:false,yAxisID:'y2'});
+    dsAvg.push({label:'USD/ZAR Policy (25)',data:Array(za.length).fill(25),borderColor:'rgba(13,148,136,.4)',borderDash:[5,3],pointRadius:0,borderWidth:1.5,fill:false,yAxisID:'y2'});
+  }
+  var avgLbls = all.map(dlbl);
+  if (dsAvg.length) {
+    var avgScales = {x:{ticks:Object.assign({},TK,{maxTicksLimit:12}),grid:GR},y:{position:'left',ticks:TK,grid:GR,min:0,title:{display:true,text:'EUR/USD Pips',color:'#9ca3af',font:{size:10}}}};
+    if (za.length) avgScales.y2 = {position:'right',ticks:TK,grid:{display:false},min:0,title:{display:true,text:'USD/ZAR Pips',color:'#9ca3af',font:{size:10}}};
+    charts.avgPip = new Chart(document.getElementById('chartAvgPip'),{
+      type:'line',
+      data:{labels:eu.length?eu.map(dlbl):za.map(dlbl),datasets:dsAvg},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEG},scales:avgScales}
+    });
+  }
+
+  // ── Chart 10: Verdict distribution ──
+  var vMap={stellar:0,ok:0,caution:0,warn:0,bad:0};
+  deals.forEach(function(d){
+    var cls=pipClsForPair(parseFloat(d.pips),d.pair||'EURUSD');
+    if(vMap[cls]!==undefined)vMap[cls]++;
+  });
+  charts.verdict = new Chart(document.getElementById('chartVerdict'),{
+    type:'doughnut',
+    data:{labels:['Favourable','Satisfactory','Concerning','High Margin','Red Flag'],
+      datasets:[{data:[vMap.stellar,vMap.ok,vMap.caution,vMap.warn,vMap.bad],backgroundColor:['#16a34a','#059669','#ea580c','#d97706','#dc2626'],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:LEG}}
+  });
+
+  // ── Chart 11: Deals by day of week ──
+  var days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var dayCnt=[0,0,0,0,0,0,0]; var dayPips=[[],[],[],[],[],[],[]];
+  deals.forEach(function(d){
+    var dt=parseDate(d.date); if(!dt) return;
+    var dow=(dt.getDay()+6)%7; // Mon=0
+    dayCnt[dow]++; dayPips[dow].push(parseFloat(d.pips)||0);
+  });
+  var dayAvgPips=dayPips.map(function(arr){return arr.length?(arr.reduce(function(a,b){return a+b;},0)/arr.length):0;});
+  charts.byDay = new Chart(document.getElementById('chartByDay'),{
+    type:'bar',
+    data:{labels:days,datasets:[
+      {label:'Deal Count',data:dayCnt,backgroundColor:'rgba(59,130,246,.6)',borderRadius:3,yAxisID:'y'},
+      {label:'Avg Pips',type:'line',data:dayAvgPips.map(function(v){return+v.toFixed(2);}),borderColor:'#dc2626',tension:.3,pointRadius:4,borderWidth:2,yAxisID:'y2',fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEG},
+      scales:{x:{ticks:TK,grid:GR},
+        y:{position:'left',ticks:TK,grid:GR,title:{display:true,text:'Deals',color:'#9ca3af',font:{size:10}}},
+        y2:{position:'right',ticks:TK,grid:{display:false},title:{display:true,text:'Avg Pips',color:'#9ca3af',font:{size:10}}}}}
+  });
 }
+
+function renderBestWorst(deals) {
+  var sorted = deals.slice().sort(function(a,b){return (parseFloat(a.pips)||0)-(parseFloat(b.pips)||0);});
+  var best  = sorted.slice(0,5);
+  var worst = sorted.slice(-5).reverse();
+  var vl={stellar:'Favourable',ok:'Satisfactory',caution:'Concerning',warn:'High Margin',bad:'Red Flag'};
+  function makeRows(arr) {
+    return arr.map(function(d){
+      var p=parseFloat(d.pips)||0;
+      var cls=pipClsForPair(p,d.pair||'EURUSD');
+      return '<tr><td class="dim">'+(d.date||'')+' '+(d.pair||'EURUSD')+'</td>'
+        +'<td><span class="badge '+((d.typeLabel||'').toLowerCase().includes('sell')?'sell':'buy')+'">'+(d.typeLabel||d.type||'—')+'</span></td>'
+        +'<td class="r">'+(d.bankRate||'—')+'</td>'
+        +'<td class="r"><span class="pip-tag '+cls+'">'+p.toFixed(2)+'</span></td>'
+        +'<td class="dim">'+(d.givenBy||'—')+'</td>'
+        +'</tr>';
+    }).join('');
+  }
+  document.getElementById('tblBestBody').innerHTML  = makeRows(best)  || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:12px">No data</td></tr>';
+  document.getElementById('tblWorstBody').innerHTML = makeRows(worst) || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:12px">No data</td></tr>';
+}
+
 
 /* ═══ DASHBOARD TABLE ═══ */
 function renderDashTable() {
