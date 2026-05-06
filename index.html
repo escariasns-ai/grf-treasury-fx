@@ -472,7 +472,7 @@ tbody tr:hover{background:var(--surface2);}
 
 <!-- RATE BANNER -->
 <div class="rate-banner">
-  <div class="rbl" id="rateLabel">EUR/USD Rate (FXStreet)<span>Paste rate &rarr; click Add to log &amp; track versions</span></div>
+  <div class="rbl" id="rateLabel">EUR/USD Rate (FXStreet)<span id="rateBannerHint">If Selling: paste Bid rate &mdash; If Buying: paste Ask rate &mdash; then click Add Rate</span></div>
   <div class="rate-iw"><input type="number" id="manualRateInput" step="0.00001" placeholder="e.g. 1.08520"></div>
   <button class="set-btn" onclick="applyManualRate()">Add Rate &rarr;</button>
 </div>
@@ -488,10 +488,10 @@ tbody tr:hover{background:var(--surface2);}
     <div class="rate-dir flat" id="rateDir">No rate yet</div>
   </div>
   <div class="bid-ask">
-    <div class="ba"><div class="ba-lbl">Bid (Sell)</div><div class="ba-val" id="mBid">&mdash;</div></div>
-    <div class="ba"><div class="ba-lbl">Ask (Buy)</div><div class="ba-val" id="mAsk">&mdash;</div></div>
     <div class="ba"><div class="ba-lbl">Session High</div><div class="ba-val" id="mHigh">&mdash;</div></div>
     <div class="ba"><div class="ba-lbl">Session Low</div><div class="ba-val" id="mLow">&mdash;</div></div>
+    <div class="ba"><div class="ba-lbl">Session Avg</div><div class="ba-val" id="mAvg">&mdash;</div></div>
+    <div class="ba"><div class="ba-lbl">Readings</div><div class="ba-val" id="mCount">&mdash;</div></div>
   </div>
   <div class="version-log">
     <div class="vl-label">Rate History (this session)</div>
@@ -534,13 +534,13 @@ tbody tr:hover{background:var(--surface2);}
     <div class="pip-scale" id="pipScaleWrap" style="display:none">
       <div class="pip-scale-title">Bank Margin Position on Scale</div>
       <div class="pip-scale-track"><div class="pip-scale-marker" id="pipMarker"></div></div>
-      <div class="pip-scale-labels"><span>0</span><span>2</span><span>4</span><span>5</span><span>7</span><span>8</span><span>10+</span></div>
-      <div class="pip-scale-zones">
-        <div class="sz"><div class="sz-dot" style="background:#16a34a"></div><span style="color:#16a34a">Impressive (&lt;5)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#0d7a4e"></div><span style="color:#0d7a4e">Satisfactory (5&ndash;7)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#c45000"></div><span style="color:#c45000">Concerning (7&ndash;8)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#92600a"></div><span style="color:#92600a">High (8&ndash;9)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#b91c3c"></div><span style="color:#b91c3c">Red Flag (&gt;9)</span></div>
+      <div class="pip-scale-labels" id="pipScaleLabels"><span>0</span><span>2</span><span>4</span><span>5</span><span>7</span><span>8</span><span>10+</span></div>
+      <div class="pip-scale-zones" id="pipScaleZones">
+        <div class="sz"><div class="sz-dot" style="background:#16a34a"></div><span style="color:#16a34a" id="szL1">Favourable (&lt;5)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#0d7a4e"></div><span style="color:#0d7a4e" id="szL2">Satisfactory (5&ndash;7)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#c45000"></div><span style="color:#c45000" id="szL3">Concerning (7&ndash;8)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#92600a"></div><span style="color:#92600a" id="szL4">High (8&ndash;9)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#b91c3c"></div><span style="color:#b91c3c" id="szL5">Red Flag (&gt;9)</span></div>
       </div>
     </div>
     <div id="amtSection" style="display:none">
@@ -1005,10 +1005,10 @@ function setPair(pair) {
   document.getElementById('tabEURUSD').classList.toggle('active',pair==='EURUSD');
   document.getElementById('tabUSDZAR').classList.toggle('active',pair==='USDZAR');
   var cfg=PAIR_CONFIG[pair];
-  document.getElementById('rateLabel').innerHTML=cfg.label+' Rate (FXStreet)<span>Paste rate &rarr; click Add to log &amp; track versions</span>';
+  document.getElementById('rateLabel').innerHTML=cfg.label+' Rate (FXStreet)<span id="rateBannerHint">If Selling: paste Bid rate &mdash; If Buying: paste Ask rate &mdash; then click Add Rate</span>';
   document.getElementById('trackerTitle').textContent='GRF Treasury FX \u2014 Rate Tracker ('+cfg.label+')';
   document.getElementById('manualRateInput').placeholder=cfg.placeholder;
-  ['liveRate','mBid','mAsk','mHigh','mLow'].forEach(function(id){document.getElementById(id).textContent='\u2014';});
+  ['liveRate','mHigh','mLow','mAvg','mCount'].forEach(function(id){document.getElementById(id).textContent='\u2014';});
   document.getElementById('rateDir').className='rate-dir flat';
   document.getElementById('rateDir').textContent='No rate yet';
   document.getElementById('versionLogWrap').innerHTML='<div class="vl-empty">No rates added yet.</div>';
@@ -1111,7 +1111,10 @@ function showTrendSuggestion() {
 
 function clearRates() {
   rateLog=[];liveRate=null;
-  ['liveRate','mBid','mAsk','mHigh','mLow'].forEach(function(id){document.getElementById(id).textContent='\u2014';});
+  ['liveRate','mHigh','mLow','mAvg','mCount'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.textContent='—';
+  });
   document.getElementById('rateDir').className='rate-dir flat';
   document.getElementById('rateDir').textContent='No rate yet';
   document.getElementById('versionLogWrap').innerHTML='<div class="vl-empty">No rates added yet.</div>';
@@ -1199,10 +1202,12 @@ function calculate() {
     amtCcy1 = inputAmt / bankRate;
   }
 
-  /* Pip reference: Sell vs Bid, Buy vs Ask */
+  /* Pip reference: user pastes the EXACT market rate for their deal side
+   * (Bid when selling, Ask when buying) — so liveRate IS already the reference.
+   * No artificial spread subtraction needed. */
   var isSelling = (dealType === 'SELL_EUR' || dealType === 'SELL_USD' || dealType === 'SELL_ZAR');
-  var refRate   = isSelling ? (spot - spread) : (spot + spread);
-  var refLabel  = isSelling ? 'Bid' : 'Ask';
+  var refLabel  = isSelling ? 'Bid (as entered)' : 'Ask (as entered)';
+  var refRate   = spot;   // the pasted rate IS the Bid or Ask
   var pips      = Math.abs(bankRate - refRate) * pipMult;
   pv.textContent = pips.toFixed(2);
 
@@ -1237,11 +1242,22 @@ function calculate() {
   /* Verdict */
   var cls, icon, title, desc;
   var dLbl = (PAIR_CONFIG[currentPair].dealLabels[dealType] || dealType);
-  if (pips < 5)       { cls='stellar'; icon='⭐'; title='Impressive — Excellent Margin (< 5 Pips)';          desc=dLbl+': Bank margin vs '+refLabel+' is only '+pips.toFixed(2)+' pips. Very competitive. Confirm with confidence.'; }
-  else if (pips <= 7) { cls='ok';      icon='✅'; title='Satisfactory — Acceptable Margin (5–7 Pips)';  desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips — within your 5–7 pip range. Safe to proceed.'; }
-  else if (pips <= 8) { cls='caution'; icon='⚠️'; title='Concerning — Above 7-Pip Limit (7–8 Pips)'; desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips — above limit. Ask bank to tighten.'; }
-  else if (pips <= 9) { cls='warn';    icon='⛔'; title='High Margin — Well Above Limit (8–9 Pips)';    desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips. Negotiate firmly or try another bank.'; }
-  else                { cls='bad';     icon='❌'; title='Red Flag — Reject This Rate (> 9 Pips)';             desc=dLbl+': Bank margin vs '+refLabel+' is '+pips.toFixed(2)+' pips. Unacceptable. Request new quote.'; }
+
+  // Different pip thresholds per pair
+  var isZAR = (currentPair === 'USDZAR');
+  // EUR/USD:  <5 stellar | 5-7 ok | 7-8 caution | 8-9 warn | >9 bad
+  // USD/ZAR: <20 stellar | 20-25 ok | 25-30 caution | 30-35 warn | >35 bad
+  var t1 = isZAR ? 20 : 5;
+  var t2 = isZAR ? 25 : 7;
+  var t3 = isZAR ? 30 : 8;
+  var t4 = isZAR ? 35 : 9;
+  var unit = isZAR ? 'pips (ZAR scale)' : 'pips';
+
+  if (pips < t1)       { cls='stellar'; icon='⭐'; title='Favourable — Excellent Margin (< '+t1+' '+unit+')';            desc=dLbl+': Bank margin is only '+pips.toFixed(2)+' '+unit+'. Very competitive. Confirm with confidence.'; }
+  else if (pips <= t2) { cls='ok';      icon='✅'; title='Satisfactory — Acceptable ('+t1+'–'+t2+' '+unit+')';      desc=dLbl+': Bank margin is '+pips.toFixed(2)+' '+unit+' — within acceptable range. Safe to proceed.'; }
+  else if (pips <= t3) { cls='caution'; icon='⚠️'; title='Concerning — Above Limit ('+t2+'–'+t3+' '+unit+')'; desc=dLbl+': Bank margin is '+pips.toFixed(2)+' '+unit+' — above your policy limit. Ask the bank to tighten.'; }
+  else if (pips <= t4) { cls='warn';    icon='⛔'; title='High Margin — Well Above Limit ('+t3+'–'+t4+' '+unit+')'; desc=dLbl+': Bank margin is '+pips.toFixed(2)+' '+unit+'. Negotiate firmly or try another bank.'; }
+  else                 { cls='bad';     icon='❌'; title='Red Flag — Reject This Rate (> '+t4+' '+unit+')';              desc=dLbl+': Bank margin is '+pips.toFixed(2)+' '+unit+'. Unacceptable. Request new quote.'; }
 
   pb.className = 'pip-nb ' + cls;
   vb.className = 'vb ' + cls;
@@ -1251,7 +1267,24 @@ function calculate() {
   document.getElementById('pipScaleWrap').style.display = 'block';
   var marker = document.getElementById('pipMarker');
   marker.style.display = 'block';
-  marker.style.left = Math.min(Math.max(pips / 10 * 100, 0), 100) + '%';
+  var pipMax = isZAR ? 40 : 10;
+  marker.style.left = Math.min(Math.max(pips / pipMax * 100, 0), 100) + '%';
+  // Update scale labels for current pair
+  if (isZAR) {
+    document.getElementById('pipScaleLabels').innerHTML = '<span>0</span><span>10</span><span>20</span><span>25</span><span>30</span><span>35</span><span>40+</span>';
+    document.getElementById('szL1').textContent = 'Favourable (<20)';
+    document.getElementById('szL2').textContent = 'Satisfactory (20–25)';
+    document.getElementById('szL3').textContent = 'Concerning (25–30)';
+    document.getElementById('szL4').textContent = 'High (30–35)';
+    document.getElementById('szL5').textContent = 'Red Flag (>35)';
+  } else {
+    document.getElementById('pipScaleLabels').innerHTML = '<span>0</span><span>2</span><span>4</span><span>5</span><span>7</span><span>8</span><span>10+</span>';
+    document.getElementById('szL1').textContent = 'Favourable (<5)';
+    document.getElementById('szL2').textContent = 'Satisfactory (5–7)';
+    document.getElementById('szL3').textContent = 'Concerning (7–8)';
+    document.getElementById('szL4').textContent = 'High (8–9)';
+    document.getElementById('szL5').textContent = 'Red Flag (>9)';
+  }
 
   /* Amounts table */
   document.getElementById('lblGive').textContent = giveLabel;
@@ -1393,8 +1426,8 @@ function confirmDeal() {
     amtCcy1 = inputAmt / bankRate;
   }
 
-  var isSellCD = (dealType==='SELL_EUR'||dealType==='SELL_USD'||dealType==='SELL_ZAR');
-  var refRateCD = isSellCD ? (spot - cfg.spread) : (spot + cfg.spread);
+  var isSellCD  = (dealType==='SELL_EUR'||dealType==='SELL_USD'||dealType==='SELL_ZAR');
+  var refRateCD = spot;  // user pasted the exact market side (Bid for sell, Ask for buy)
   var refLblCD  = isSellCD ? 'Bid' : 'Ask';
   var pipsVal   = (Math.abs(bankRate - refRateCD) * pipMult).toFixed(2);
   var margDiff  = Math.abs(bankRate - refRateCD).toFixed(cfg.decimals);
@@ -1439,8 +1472,11 @@ function confirmDeal() {
   document.getElementById('emailPanel').style.display='block';
   document.getElementById('emailPanel').scrollIntoView({behavior:'smooth'});
 
-  var p2      = parseFloat(pipsVal);
-  var pipCls  = p2<5?'stellar':p2<=7?'ok':p2<=8?'caution':p2<=9?'warn':'bad';
+  var p2       = parseFloat(pipsVal);
+  var isZARcd  = (currentPair === 'USDZAR');
+  var pipCls   = isZARcd
+    ? (p2<20?'stellar':p2<=25?'ok':p2<=30?'caution':p2<=35?'warn':'bad')
+    : (p2<5?'stellar':p2<=7?'ok':p2<=8?'caution':p2<=9?'warn':'bad');
   var record  = {
     id:Date.now(), datetime:now.toISOString(), date:todayStr, time:timeStr,
     pair:currentPair, type:dealType, typeLabel:typeLabel,
