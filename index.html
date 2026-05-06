@@ -885,7 +885,10 @@ tbody tr:hover{background:var(--surface2);}
 <div class="modal-overlay" id="bankModal" onclick="closeBankOutside(event)">
   <div class="edit-modal" style="max-width:700px">
     <div class="em-hdr" style="background:var(--text)">
-      <div class="em-title" style="color:#fff">&#127981; Bank Master Data</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="em-title" style="color:#fff">&#127981; Bank Master Data</div>
+        <span id="bankSyncStatus" style="font-size:11px;font-weight:600"></span>
+      </div>
       <button class="modal-close" style="color:rgba(255,255,255,.7)" onclick="closeBankModal()">&times;</button>
     </div>
     <div class="em-body" style="padding:18px 22px">
@@ -924,12 +927,12 @@ tbody tr:hover{background:var(--surface2);}
       </div>
     </div>
     <div style="padding:10px 22px;font-size:11px;color:var(--text3);background:var(--surface2);border-top:1px solid var(--border);line-height:1.6">
-      &#128274; Bank master data is saved to <b>this browser's local storage</b> (not Supabase). 
-      It is device-specific configuration — set it up once per device. 
-      Individual deal records (including which bank) are saved to Supabase.
+      &#127981; Bank master data is synced to <b>Supabase</b> when connected — shared across all devices. 
+      Also cached in browser localStorage for fast loading. Use <b>↑ Sync All</b> to force a full sync.
     </div>
     <div class="em-footer">
       <button class="em-save" onclick="closeBankModal()">Done</button>
+      <button class="em-cancel" onclick="forceSyncBanks()" style="color:var(--accent);border-color:var(--accent-bd)">&#8593; Sync All to Supabase</button>
       <button class="em-cancel" onclick="resetBanksToDefault()" style="color:var(--amber);border-color:var(--amber-bd)">Reset to Defaults</button>
     </div>
   </div>
@@ -1037,15 +1040,128 @@ var DEFAULT_BANKS = [
   {id:'NBO', name:'NBO Bank (NBO)',  stdEUmin:5,stdEUmax:7,stdZARmin:20,stdZARmax:25,active:true},
 ];
 
-function loadBanks(){
+/* ── Bank local cache helpers ── */
+function loadBanksLocal(){
   try{var s=localStorage.getItem(BANKS_KEY);return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_BANKS));}
   catch(e){return JSON.parse(JSON.stringify(DEFAULT_BANKS));}
 }
-function saveBanks(b){try{localStorage.setItem(BANKS_KEY,JSON.stringify(b));}catch(e){}}
-var bankMaster = loadBanks();
+function saveBanksLocal(b){try{localStorage.setItem(BANKS_KEY,JSON.stringify(b));}catch(e){}}
+var bankMaster = loadBanksLocal();
 
 function getActiveBanks(){return bankMaster.filter(function(b){return b.active;});}
 function getBankById(id){return bankMaster.find(function(b){return b.id===id;})||null;}
+
+/* ── Bank Supabase CRUD ── */
+var BANK_TABLE = 'bank_master';
+
+function bankSbHeaders(){
+  return {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+}
+
+function mapBankToDb(b){
+  return {
+    bank_id:    b.id,
+    bank_name:  b.name,
+    std_eu_min: b.stdEUmin,
+    std_eu_max: b.stdEUmax,
+    std_zar_min:b.stdZARmin,
+    std_zar_max:b.stdZARmax,
+    active:     b.active !== false
+  };
+}
+
+function mapBankFromDb(r){
+  return {
+    id:       r.bank_id,
+    name:     r.bank_name,
+    stdEUmin: parseFloat(r.std_eu_min)  || 5,
+    stdEUmax: parseFloat(r.std_eu_max)  || 7,
+    stdZARmin:parseFloat(r.std_zar_min) || 20,
+    stdZARmax:parseFloat(r.std_zar_max) || 25,
+    active:   r.active !== false,
+    dbId:     r.id
+  };
+}
+
+async function dbBankLoadAll() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+  try {
+    var res = await fetch(SUPABASE_URL+'/rest/v1/'+BANK_TABLE+'?select=*&order=bank_id.asc', {
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    var rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    return rows.map(mapBankFromDb);
+  } catch(e){ console.warn('Bank load failed:',e.message); return null; }
+}
+
+async function dbBankUpsert(bank) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  try {
+    // Use bank_id as the conflict key for upsert
+    var res = await fetch(SUPABASE_URL+'/rest/v1/'+BANK_TABLE+'?on_conflict=bank_id', {
+      method:'POST',
+      headers: Object.assign({},bankSbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),
+      body: JSON.stringify(mapBankToDb(bank))
+    });
+    if (!res.ok) {
+      var err = await res.text();
+      throw new Error('HTTP '+res.status+': '+err);
+    }
+  } catch(e){ console.warn('Bank upsert failed:',e.message); }
+}
+
+async function dbBankDelete(bankId) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  try {
+    var res = await fetch(SUPABASE_URL+'/rest/v1/'+BANK_TABLE+'?bank_id=eq.'+encodeURIComponent(bankId), {
+      method:'DELETE',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+  } catch(e){ console.warn('Bank delete failed:',e.message); }
+}
+
+async function dbBankToggleActive(bankId, active) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  try {
+    await fetch(SUPABASE_URL+'/rest/v1/'+BANK_TABLE+'?bank_id=eq.'+encodeURIComponent(bankId), {
+      method:'PATCH',
+      headers: bankSbHeaders(),
+      body: JSON.stringify({active: active})
+    });
+  } catch(e){ console.warn('Bank toggle failed:',e.message); }
+}
+
+async function syncAllBanksToDb(banks) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  for (var i=0; i<banks.length; i++) {
+    await dbBankUpsert(banks[i]);
+  }
+}
+
+/* ── Load banks from Supabase on startup ── */
+async function initBanks() {
+  if (DB_MODE === 'supabase') {
+    var dbBanks = await dbBankLoadAll();
+    if (dbBanks && dbBanks.length > 0) {
+      bankMaster = dbBanks;
+      saveBanksLocal(bankMaster);
+      console.log('Banks loaded from Supabase:', bankMaster.length);
+    } else {
+      // First time: push local defaults to Supabase
+      console.log('No banks in Supabase — seeding defaults...');
+      await syncAllBanksToDb(bankMaster);
+    }
+  }
+  populateBankDropdown();
+}
 var dashSortKey = 'date';
 var dashSortAsc = false;
 var charts      = {};
@@ -2796,7 +2912,8 @@ function addOrUpdateBank() {
     if (existing >= 0) { bankMaster[existing] = Object.assign(bankMaster[existing], bankObj); }
     else { bankMaster.push(bankObj); }
   }
-  saveBanks(bankMaster);
+  saveBanksLocal(bankMaster);
+  dbBankUpsert(bankObj).then(function(){ setBankSyncStatus('saved'); });
   renderBankTable();
   clearBankForm();
 }
@@ -2814,15 +2931,47 @@ function editBank(i) {
 
 function deleteBank(i) {
   if (!confirm('Remove '+bankMaster[i].name+'?')) return;
+  var deletedId = bankMaster[i].id;
   bankMaster.splice(i, 1);
-  saveBanks(bankMaster);
+  saveBanksLocal(bankMaster);
+  dbBankDelete(deletedId).then(function(){ setBankSyncStatus('saved'); });
   renderBankTable();
   clearBankForm();
 }
 
 function toggleBankActive(i, val) {
   bankMaster[i].active = val;
-  saveBanks(bankMaster);
+  saveBanksLocal(bankMaster);
+  dbBankToggleActive(bankMaster[i].id, val).then(function(){ setBankSyncStatus('saved'); });
+}
+
+function setBankSyncStatus(state) {
+  var el = document.getElementById('bankSyncStatus');
+  if (!el) return;
+  if (state === 'saved') {
+    el.textContent = '✓ Synced to Supabase'; el.style.color = 'var(--green)';
+    setTimeout(function(){ el.textContent = ''; }, 3000);
+  } else if (state === 'syncing') {
+    el.textContent = '⏳ Syncing...'; el.style.color = 'var(--amber)';
+  } else if (state === 'local') {
+    el.textContent = '⚠ Saved locally only (no DB connection)'; el.style.color = 'var(--amber)';
+  } else {
+    el.textContent = ''; 
+  }
+}
+
+function forceSyncBanks() {
+  if (DB_MODE !== 'supabase') {
+    alert('Not connected to Supabase. Check your configuration in the ⚙ settings.');
+    return;
+  }
+  setBankSyncStatus('syncing');
+  syncAllBanksToDb(bankMaster).then(function(){
+    setBankSyncStatus('saved');
+  }).catch(function(e){
+    setBankSyncStatus('local');
+    console.error('Sync failed:', e);
+  });
 }
 
 function clearBankForm() {
@@ -2835,7 +2984,9 @@ function clearBankForm() {
 function resetBanksToDefault() {
   if (!confirm('Reset all banks to default settings?')) return;
   bankMaster = JSON.parse(JSON.stringify(DEFAULT_BANKS));
-  saveBanks(bankMaster);
+  saveBanksLocal(bankMaster);
+  setBankSyncStatus('syncing');
+  syncAllBanksToDb(bankMaster).then(function(){ setBankSyncStatus('saved'); });
   renderBankTable();
   clearBankForm();
 }
@@ -2942,6 +3093,7 @@ async function loadHistoryFromSource() {
       saveHistory(dealHistory);
       renderHistory();
       updatePillCount();
+      initBanks(); // load banks from Supabase
       return;
     } else {
       setDbStatus('local');
@@ -2953,12 +3105,14 @@ async function loadHistoryFromSource() {
   dealHistory = loadHistory();
   renderHistory();
   updatePillCount();
+  setBankSyncStatus('local');
+  populateBankDropdown(); // use local banks
 }
 
 /* ═══ INIT ═══ */
 document.getElementById('valueDate').value=new Date().toISOString().split('T')[0];
 document.getElementById('amount').addEventListener('input',updateAmtWords);
-populateBankDropdown();
+// initBanks() called after DB connects
 setPair('EURUSD');
 fetchLiveRates(); // Start live rate fetch
 
