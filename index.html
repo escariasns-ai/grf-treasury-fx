@@ -531,7 +531,7 @@ tbody tr:hover{background:var(--surface2);}
     </div>
     <div class="grid2i" style="gap:10px">
       <div class="fg"><label class="flbl">Bank</label>
-        <select class="fi fi-sel" id="dealBank">
+        <select class="fi fi-sel" id="dealBank" onchange="calculate()">
           <option value="">-- Select Bank --</option>
         </select>
       </div>
@@ -922,6 +922,11 @@ tbody tr:hover{background:var(--surface2);}
         </div>
         <input type="hidden" id="bk-editing">
       </div>
+    </div>
+    <div style="padding:10px 22px;font-size:11px;color:var(--text3);background:var(--surface2);border-top:1px solid var(--border);line-height:1.6">
+      &#128274; Bank master data is saved to <b>this browser's local storage</b> (not Supabase). 
+      It is device-specific configuration — set it up once per device. 
+      Individual deal records (including which bank) are saved to Supabase.
     </div>
     <div class="em-footer">
       <button class="em-save" onclick="closeBankModal()">Done</button>
@@ -1664,12 +1669,19 @@ function fmtN(n){return Number(n).toLocaleString('en-US');}
 
 /* ═══ CONFIRM DEAL ═══ */
 function confirmDeal() {
+  // Guard: must have a market rate in tracker
+  if (!liveRate) {
+    alert('No market rate found.\n\nPlease add a rate from FXStreet to the Rate Tracker first\n(paste rate → click Add Rate →), or click the live rate card to fetch one.');
+    return;
+  }
   var bankRate  = parseFloat(document.getElementById('bankRate').value);
   var inputAmt  = parseFloat(document.getElementById('amount').value);
+  if (isNaN(bankRate) || bankRate <= 0) { alert('Please enter a valid Bank Deal Rate.'); return; }
+  if (isNaN(inputAmt) || inputAmt <= 0) { alert('Please enter a valid Amount.'); return; }
   var dealNo    = document.getElementById('dealNo').value    || '—';
   var valueDate = document.getElementById('valueDate').value;
   var givenBy   = document.getElementById('givenBy').value   || '—';
-  var spot      = liveRate;
+  var spot      = liveRate;   // guaranteed non-null by guard above
   var cfg       = PAIR_CONFIG[currentPair];
   var pipMult   = currentPair === 'EURUSD' ? 10000 : 100;
 
@@ -1721,7 +1733,7 @@ function confirmDeal() {
     +'  '+cfg.ccy1+' AMOUNT     :  '+fmtN(amtCcy1.toFixed(0))+ln
     +'  '+cfg.ccy2+' AMOUNT     :  '+fmtN(amtCcy2.toFixed(2))+ln
     +'  DEAL RATE      :  '+bankRate.toFixed(cfg.decimals)+ln
-    +'  SPOT RATE ('+refLblCD+'):  '+refRateCD.toFixed(cfg.decimals)+ln
+    +'  SPOT RATE ('+refLblCD+'):  '+(refRateCD?refRateCD.toFixed(cfg.decimals):'N/A')+ln
     +'  MARGINAL DIFF  :  '+margDiff+ln
     +'  DIFF IN PIPs   :  '+pipsVal+' pips'+ln
     +'  DEAL No.       :  '+dealNo+ln
@@ -1745,24 +1757,28 @@ function confirmDeal() {
     id:Date.now(), datetime:now.toISOString(), date:todayStr, time:timeStr,
     pair:currentPair, type:dealType, typeLabel:typeLabel,
     dealNo:dealNo, valueDate:fmtDate, givenBy:givenBy, bank:dealBank, bankName:bankName,
-    bankRate:bankRate.toFixed(cfg.decimals), spotRate:refRateCD.toFixed(cfg.decimals),
+    bankRate:bankRate.toFixed(cfg.decimals), spotRate:(refRateCD?refRateCD.toFixed(cfg.decimals):'0'),
     amtCcy1:amtCcy1.toFixed(0), amtCcy2:amtCcy2.toFixed(2),
     ccy1:cfg.ccy1, ccy2:cfg.ccy2, pips:pipsVal, pipCls:pipCls,
     margDiff:margDiff, amtWords:amtInWords
   };
-  dealHistory.unshift(record);
-  saveHistory(dealHistory);
-  renderHistory();
-  updatePillCount();
-  // Save to Supabase if connected
-  if (DB_MODE === 'supabase') {
-    dbInsert(record).then(function(row) {
-      if (row && row.id) {
-        // Update local record with real DB id
-        var idx = dealHistory.findIndex(function(x){ return x.id === record.id; });
-        if (idx !== -1) { dealHistory[idx].dbId = row.id; saveHistory(dealHistory); }
-      }
-    });
+  try {
+    dealHistory.unshift(record);
+    saveHistory(dealHistory);
+    renderHistory();
+    updatePillCount();
+    // Save to Supabase if connected
+    if (DB_MODE === 'supabase') {
+      dbInsert(record).then(function(row) {
+        if (row && row.id) {
+          var idx = dealHistory.findIndex(function(x){ return x.id === record.id; });
+          if (idx !== -1) { dealHistory[idx].dbId = row.id; saveHistory(dealHistory); }
+        }
+      });
+    }
+  } catch(saveErr) {
+    console.error('Error saving deal:', saveErr);
+    alert('Deal email generated but there was an error saving the record: ' + saveErr.message);
   }
 }
 
