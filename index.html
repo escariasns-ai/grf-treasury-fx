@@ -423,6 +423,7 @@ tbody tr:hover{background:var(--surface2);}
     <button class="help-btn" onclick="openHelp()">&#10067; Help</button>
     <button class="help-btn" onclick="openConfig()" style="padding:6px 12px" title="Database Settings">&#9881;</button>
     <button class="help-btn" onclick="openBankManager()" style="padding:6px 10px;color:var(--accent)" title="Manage Banks">&#127981; Banks</button>
+    <button class="help-btn" onclick="openGivenByManager()" style="padding:6px 10px;color:var(--green)" title="Manage People">&#128100; People</button>
     <div class="pill" id="dbPill" style="background:#fff0f3;border-color:#f4a8b8;color:#b91c3c;display:none">
       <span id="dbPillTxt">&#9679; DB Offline</span>
     </div>
@@ -539,7 +540,6 @@ tbody tr:hover{background:var(--surface2);}
         <select class="fi fi-sel" id="givenBy">
           <option value="">-- Select --</option>
           <option value="Ms. Mariam">Ms. Mariam</option>
-           <option value="Mr. Riswan">Mr. Riswan</option>
           <option value="Mr. Assan">Mr. Assan</option>
           <option value="Mr. Farkhan">Mr. Farkhan</option>
         </select>
@@ -882,6 +882,43 @@ tbody tr:hover{background:var(--surface2);}
   </div>
 </div>
 
+<!-- ══ GIVEN BY MANAGER MODAL ══ -->
+<div class="modal-overlay" id="givenByModal" onclick="if(event.target===this)closeGivenByModal()">
+  <div class="edit-modal" style="max-width:540px">
+    <div class="em-hdr" style="background:var(--green)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="em-title" style="color:#fff">&#128100; People / Given By Master</div>
+        <span id="gbSyncStatus" style="font-size:11px;font-weight:600;color:rgba(255,255,255,.8)"></span>
+      </div>
+      <button class="modal-close" style="color:rgba(255,255,255,.7)" onclick="closeGivenByModal()">&times;</button>
+    </div>
+    <div class="em-body" style="padding:18px 22px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">
+        Manage the list of people who can give forex rates. Synced to Supabase when connected.
+      </div>
+      <div id="givenByTableWrap"></div>
+      <div style="margin-top:14px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs)">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Add Person</div>
+        <div style="display:grid;grid-template-columns:70px 1fr 80px;gap:8px;align-items:end">
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">Title</label>
+            <select class="em-fi em-fi-sel" id="gb-title" style="font-size:13px">
+              <option>Ms.</option><option>Mr.</option><option>Dr.</option>
+            </select>
+          </div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">Full Name</label>
+            <input class="em-fi" type="text" id="gb-name" placeholder="First and Last name" style="font-size:13px">
+          </div>
+          <div><button onclick="addGivenByPerson()" class="em-save" style="padding:9px;width:100%">Add</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="em-footer">
+      <button class="em-save" onclick="closeGivenByModal()">Done</button>
+      <button class="em-cancel" onclick="resetGivenByToDefault()" style="color:var(--amber);border-color:var(--amber-bd)">Reset Defaults</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ BANK MANAGER MODAL ══ -->
 <div class="modal-overlay" id="bankModal" onclick="closeBankOutside(event)">
   <div class="edit-modal" style="max-width:700px">
@@ -1031,6 +1068,72 @@ var dealType    = 'SELL_EUR';
 var rateLog     = [];
 var STORAGE_KEY  = 'fx_deal_history_v2';
 var BANKS_KEY    = 'grf_banks_config';
+var GIVENBY_KEY  = 'grf_givenby_config';
+var DEFAULT_GIVENBY = [
+  {id:'MRM', name:'Ms. Mariam',   title:'Ms.',  active:true},
+  {id:'ASN', name:'Mr. Assan',    title:'Mr.',  active:true},
+  {id:'FRK', name:'Mr. Farkhan',  title:'Mr.',  active:true},
+  {id:'RSW', name:'Mr. Riswan',   title:'Mr.',  active:true},
+];
+function loadGivenBy(){
+  try{var s=localStorage.getItem(GIVENBY_KEY);
+    return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_GIVENBY));}
+  catch(e){return JSON.parse(JSON.stringify(DEFAULT_GIVENBY));}
+}
+function saveGivenByLocal(g){try{localStorage.setItem(GIVENBY_KEY,JSON.stringify(g));}catch(e){}}
+var givenByMaster = loadGivenBy();
+function getActiveGivenBy(){return givenByMaster.filter(function(g){return g.active;});}
+
+/* Supabase sync for given_by_master */
+var GIVENBY_TABLE = 'given_by_master';
+async function dbGivenByLoadAll(){
+  if(!SUPABASE_URL||!SUPABASE_KEY) return null;
+  try{
+    var res=await fetch(SUPABASE_URL+'/rest/v1/'+GIVENBY_TABLE+'?select=*&order=name.asc',
+      {headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var rows=await res.json();
+    if(!Array.isArray(rows)||rows.length===0) return null;
+    return rows.map(function(r){return{id:r.person_id,name:r.name,title:r.title||'',active:r.active!==false};});
+  }catch(e){console.warn('GivenBy load:',e.message);return null;}
+}
+async function dbGivenByUpsert(g){
+  if(!SUPABASE_URL||!SUPABASE_KEY) return;
+  try{
+    await fetch(SUPABASE_URL+'/rest/v1/'+GIVENBY_TABLE+'?on_conflict=person_id',{
+      method:'POST',
+      headers:Object.assign({},bankSbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),
+      body:JSON.stringify({person_id:g.id,name:g.name,title:g.title||'',active:g.active!==false})
+    });
+  }catch(e){console.warn('GivenBy upsert:',e.message);}
+}
+async function dbGivenByDelete(personId){
+  if(!SUPABASE_URL||!SUPABASE_KEY) return;
+  try{
+    await fetch(SUPABASE_URL+'/rest/v1/'+GIVENBY_TABLE+'?person_id=eq.'+encodeURIComponent(personId),
+      {method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+  }catch(e){console.warn('GivenBy delete:',e.message);}
+}
+async function initGivenBy(){
+  if(DB_MODE==='supabase'){
+    var rows=await dbGivenByLoadAll();
+    if(rows&&rows.length>0){givenByMaster=rows;saveGivenByLocal(givenByMaster);}
+    else{for(var i=0;i<givenByMaster.length;i++)await dbGivenByUpsert(givenByMaster[i]);}
+  }
+  populateGivenByDropdowns();
+}
+function populateGivenByDropdowns(){
+  ['givenBy','em-givenBy'].forEach(function(selId){
+    var sel=document.getElementById(selId);
+    if(!sel) return;
+    var cur=sel.value;
+    sel.innerHTML='<option value="">-- Select --</option>';
+    getActiveGivenBy().forEach(function(g){
+      var o=document.createElement('option');o.value=g.name;o.textContent=g.name;sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
+  });
+}
 
 // Default banks with standard pip margins per pair
 var DEFAULT_BANKS = [
@@ -1290,7 +1393,9 @@ function mapToDb(d) {
     pips:            parseFloat(d.pips)      || 0,
     pip_verdict:     d.pipCls      || '',
     marginal_diff:   parseFloat(d.margDiff)  || 0,
-    amount_in_words: d.amtWords    || ''
+    amount_in_words: d.amtWords    || '',
+    bank:            d.bank        || '',
+    bank_name:       d.bankName    || ''
   };
 }
 
@@ -1316,7 +1421,9 @@ function mapFromDb(r) {
     pips:      String(r.pips        || ''),
     pipCls:    r.pip_verdict   || 'ok',
     margDiff:  String(r.marginal_diff || ''),
-    amtWords:  r.amount_in_words || ''
+    amtWords:  r.amount_in_words || '',
+    bank:      r.bank      || '',
+    bankName:  r.bank_name || ''
   };
 }
 
@@ -1787,171 +1894,91 @@ function fmtN(n){return Number(n).toLocaleString('en-US');}
 /* ═══ EMAIL HTML BUILDER ═══ */
 function buildEmailHtml(p) {
   var isSell    = p.typeLabel.toLowerCase().indexOf('sell') >= 0;
-  var typeColor = isSell ? '#dc2626' : '#16a34a';
-  var typeLight = isSell ? '#fef2f2' : '#f0fdf4';
-  var typeBd    = isSell ? '#fca5a5' : '#86efac';
+  var typeColor = isSell ? '#b91c1c' : '#15803d';
   var typeIcon  = isSell ? '&#9660;' : '&#9650;';
 
   var verdictMap = {
-    stellar:{ bg:'#f0fdf4', bd:'#86efac', txt:'#15803d', icon:'&#11088;', label:'Favourable'   },
-    ok:     { bg:'#eff6ff', bd:'#93c5fd', txt:'#1d4ed8', icon:'&#9989;',  label:'Satisfactory' },
-    caution:{ bg:'#fff7ed', bd:'#fed7aa', txt:'#c2410c', icon:'&#9888;&#65039;', label:'Concerning'   },
-    warn:   { bg:'#fffbeb', bd:'#fde68a', txt:'#92400e', icon:'&#128312;', label:'High Margin'  },
-    bad:    { bg:'#fef2f2', bd:'#fca5a5', txt:'#b91c1c', icon:'&#10060;', label:'Red Flag'     }
+    stellar:{ bg:'#f0fdf4', bd:'#86efac', txt:'#15803d', icon:'&#9989;',  label:'Favourable'   },
+    ok:     { bg:'#eff6ff', bd:'#bfdbfe', txt:'#1d4ed8', icon:'&#9989;',  label:'Satisfactory' },
+    caution:{ bg:'#fff7ed', bd:'#fed7aa', txt:'#c2410c', icon:'&#9888;',  label:'Concerning'   },
+    warn:   { bg:'#fffbeb', bd:'#fde68a', txt:'#92400e', icon:'&#9888;',  label:'High Margin'  },
+    bad:    { bg:'#fef2f2', bd:'#fca5a5', txt:'#b91c1c', icon:'&#10006;', label:'Red Flag'     }
   };
   var v = verdictMap[p.pipCls] || verdictMap.ok;
 
-  function row(label, val, highlight) {
-    var bg  = highlight ? '#eff6ff' : '#ffffff';
-    var fw  = highlight ? '700' : '400';
-    var sz  = highlight ? '14px' : '13px';
+  function tr(label, val) {
     return '<tr>'
-      +'<td style="padding:9px 16px;font-size:12px;font-weight:600;color:#6b7280;'
-      +'background:#f9fafb;border-bottom:1px solid #e5e7eb;width:42%;'
-      +'text-transform:uppercase;letter-spacing:.5px;font-family:Arial,sans-serif">'+label+'</td>'
-      +'<td style="padding:9px 16px;font-size:'+sz+';font-weight:'+fw+';color:#111827;'
-      +'background:'+bg+';border-bottom:1px solid #e5e7eb;'
-      +'font-family:Consolas,\'Courier New\',monospace">'+val+'</td>'
+      +'<td style="padding:8px 14px;font-size:13px;font-weight:600;color:#374151;'
+      +'background:#f9fafb;border:1px solid #e5e7eb;width:40%">'+label+'</td>'
+      +'<td style="padding:8px 14px;font-size:13px;color:#111827;'
+      +'border:1px solid #e5e7eb;font-family:Consolas,\'Courier New\',monospace">'+val+'</td>'
       +'</tr>';
   }
 
-  return [
-  '<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;'
-    +'background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">',
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;max-width:600px;line-height:1.6">'
 
-  /* ── TOP HEADER ── */
-  '<table style="width:100%;border-collapse:collapse;background:#2563eb">',
-  '<tr><td style="padding:18px 24px">',
-    '<table style="width:100%;border-collapse:collapse"><tr>',
-      '<td>',
-        '<div style="color:#bfdbfe;font-size:10px;font-weight:700;letter-spacing:2px;'
-          +'text-transform:uppercase;margin-bottom:3px">GRF Group</div>',
-        '<div style="color:#ffffff;font-size:17px;font-weight:700;letter-spacing:-.2px">'
-          +'Treasury &amp; Payments Operations</div>',
-      '</td>',
-      '<td style="text-align:right;vertical-align:middle">',
-        '<div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);'
-          +'color:#ffffff;padding:5px 14px;border-radius:4px;font-size:11px;font-weight:700;'
-          +'letter-spacing:1px;text-transform:uppercase;display:inline-block">'
-          +'FOREX DEAL CONFIRMATION</div>',
-      '</td>',
-    '</tr></table>',
-  '</td></tr>',
-  '</table>',
+  /* Greeting */
+  +'<p style="font-size:15px;font-weight:700;margin:0 0 6px">Dear Team</p>'
+  +'<p style="color:#6b7280;margin:0 0 18px">Please find below the Forex Deal details for your reference:</p>'
 
-  /* ── DEAL TYPE STRIP ── */
-  '<div style="background:'+typeLight+';border-bottom:2px solid '+typeBd+';'
-    +'padding:10px 24px;display:flex;align-items:center">',
-    '<span style="font-size:15px;font-weight:700;color:'+typeColor+'">'
-      +typeIcon+' '+p.typeLabel+'</span>',
-    '<span style="color:#6b7280;font-size:13px;margin:0 10px">&#8226;</span>',
-    '<span style="color:#374151;font-size:13px;font-weight:600">'+p.pairLabel+'</span>',
-    '<span style="margin-left:auto;color:#6b7280;font-size:12px">Deal No. '
-      +'<b style="color:#111827;font-family:Consolas">'+p.dealNo+'</b></span>',
-  '</div>',
+  /* Deal type header row */
+  +'<table style="width:100%;border-collapse:collapse;margin-bottom:14px">'
+  +'<tr style="border-bottom:2px solid '+typeColor+'">'
+  +'<td style="padding:8px 0;font-size:14px;font-weight:700;color:'+typeColor+'">'
+    +typeIcon+' '+p.typeLabel
+  +'</td>'
+  +'<td style="text-align:right;font-size:13px;color:#374151;font-weight:600">'
+    +'Deal No. <span style="font-family:Consolas;color:#111827">'+p.dealNo+'</span>'
+  +'</td>'
+  +'</tr></table>'
 
-  /* ── AMOUNT CARDS ── */
-  '<div style="padding:18px 24px;background:#f9fafb;border-bottom:1px solid #e5e7eb">',
-    '<table style="width:100%;border-collapse:collapse"><tr>',
+  /* Deal Details label */
+  +'<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.8px;margin:0 0 6px">Deal Details</p>'
 
-      '<td style="width:44%;vertical-align:top">',
-        '<div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;'
-          +'padding:14px 16px;border-top:3px solid #6b7280">',
-          '<div style="font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:1.2px;'
-            +'text-transform:uppercase;margin-bottom:6px">'+p.ccy1+' Amount</div>',
-          '<div style="font-size:24px;font-weight:700;color:#111827;'
-            +'font-family:Consolas,monospace;letter-spacing:-.5px">'+p.amtCcy1+'</div>',
-          '<div style="font-size:11px;color:#9ca3af;margin-top:4px">'
-            +(isSell ? 'You Sell / Give' : 'You Pay / Give')+'</div>',
-        '</div>',
-      '</td>',
+  /* Details table */
+  +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'
+  +tr('Deal Rate',   p.bankRate)
+  +tr(p.ccy1+' Amount', p.amtCcy1
+    +'<br><span style="font-size:11px;color:#9ca3af;font-style:italic;font-family:Arial">'
+    +'('+p.amtInWords.replace(p.ccy2,'').replace(p.ccy1,'').trim().replace(/\s+/,' ')
+    +' '+p.ccy1+')</span>')
+  +tr(p.ccy2+' Amount', p.amtCcy2
+    +'<br><span style="font-size:11px;color:#9ca3af;font-style:italic;font-family:Arial">'
+    +'('+p.amtInWords+')</span>')
+  +tr('Value Date',  p.fmtDate)
+  +tr('Bank',        p.bankName)
+  +tr('Given By',    p.givenBy)
+  +'</table>'
 
-      '<td style="width:12%;text-align:center;vertical-align:middle;padding:0 8px">',
-        '<div style="background:#e5e7eb;width:32px;height:32px;border-radius:50%;'
-          +'display:flex;align-items:center;justify-content:center;margin:0 auto;'
-          +'font-size:16px;color:#6b7280">&#8594;</div>',
-      '</td>',
+  /* Pip verdict */
+  +'<table style="width:100%;border-collapse:collapse;margin-bottom:14px">'
+  +'<tr><td style="padding:10px 14px;background:'+v.bg+';border:1px solid '+v.bd
+    +';border-radius:4px;font-size:13px;font-weight:700;color:'+v.txt+'">'
+    +v.icon+' &nbsp;<b>'+v.label+'</b>'
+    +'<span style="font-weight:400;font-size:12px;color:'+v.txt+';margin-left:8px">'
+    +'( As per GRF Treasury Policy Assessment )</span>'
+  +'</td></tr></table>'
 
-      '<td style="width:44%;vertical-align:top">',
-        '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;'
-          +'padding:14px 16px;border-top:3px solid #2563eb">',
-          '<div style="font-size:10px;font-weight:700;color:#3b82f6;letter-spacing:1.2px;'
-            +'text-transform:uppercase;margin-bottom:6px">'+p.ccy2+' Amount</div>',
-          '<div style="font-size:24px;font-weight:700;color:#1d4ed8;'
-            +'font-family:Consolas,monospace;letter-spacing:-.5px">'+p.amtCcy2+'</div>',
-          '<div style="font-size:11px;color:#3b82f6;margin-top:4px">'
-            +(isSell ? 'You Receive' : 'You Receive')+'</div>',
-        '</div>',
-      '</td>',
+  /* 20 min notice */
+  +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'
+  +'<tr><td style="padding:9px 14px;background:#fffbeb;border:1px solid #fde68a;'
+    +'border-radius:4px;text-align:center;font-size:13px;font-weight:700;color:#92400e">'
+    +'&#9200; Use This Deal After 20 Minutes'
+  +'</td></tr></table>'
 
-    '</tr></table>',
-  '</div>',
+  /* Footer */
+  +'<table style="width:100%;border-collapse:collapse;border-top:1px solid #e5e7eb;padding-top:10px">'
+  +'<tr>'
+  +'<td style="padding-top:10px;font-size:12px;color:#9ca3af">'
+    +'GRF Treasury FX System<br>Generated '+p.fmtDate
+  +'</td>'
+  +'<td style="text-align:right;padding-top:10px">'
+    +'<span style="font-size:13px;font-weight:600;color:#374151">Regards,<br>'
+    +'<span style="color:#1d4ed8">Eldhose Scaria</span></span>'
+  +'</td>'
+  +'</tr></table>'
 
-  /* ── DEAL DETAILS TABLE ── */
-  '<div style="padding:0 24px 18px;background:#ffffff">',
-    '<div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:1px;'
-      +'text-transform:uppercase;padding:14px 0 8px">Deal Details</div>',
-    '<table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">',
-      row('Deal Rate',                    p.bankRate, true),
-      row('Spot Rate ('+p.refLbl+')',    p.spotRate, false),
-      row('Marginal Difference',         p.margDiff, false),
-      row('Margin in Pips',             p.pipsVal+' pips', false),
-      row('Value Date',                 p.fmtDate, false),
-      row('Bank',                        p.bankName, false),
-      row('Given By',                    p.givenBy, false),
-    '</table>',
-  '</div>',
-
-  /* ── PIP VERDICT ── */
-  '<div style="padding:0 24px 16px">',
-    '<div style="background:'+v.bg+';border:1.5px solid '+v.bd+';border-radius:6px;'
-      +'padding:12px 16px">',
-      '<table style="width:100%;border-collapse:collapse"><tr>',
-        '<td style="vertical-align:middle;width:36px;font-size:22px">'+v.icon+'</td>',
-        '<td style="vertical-align:middle;padding-left:10px">',
-          '<div style="font-size:13px;font-weight:700;color:'+v.txt+'">'+v.label+' &mdash; '+p.pipsVal+' pips</div>',
-          '<div style="font-size:11px;color:'+v.txt+';opacity:.8;margin-top:2px">GRF Treasury Policy Assessment</div>',
-        '</td>',
-        '<td style="text-align:right;vertical-align:middle">',
-          '<div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.8px">Deal No.</div>',
-          '<div style="font-size:14px;font-weight:700;color:#111827;font-family:Consolas">'+p.dealNo+'</div>',
-        '</td>',
-      '</tr></table>',
-    '</div>',
-  '</div>',
-
-  /* ── AMOUNT IN WORDS ── */
-  '<div style="padding:0 24px 16px">',
-    '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px 16px">',
-      '<div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;'
-        +'letter-spacing:1px;margin-bottom:4px">Amount in Words</div>',
-      '<div style="font-size:13px;color:#374151;font-style:italic;line-height:1.5">'+p.amtInWords+'</div>',
-    '</div>',
-  '</div>',
-
-  /* ── 20-MINUTE NOTICE ── */
-  '<div style="padding:0 24px 18px">',
-    '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;'
-      +'padding:10px 16px;text-align:center">',
-      '<span style="font-size:13px;font-weight:700;color:#92400e">&#9200; Use This Deal After 20 Minutes</span>',
-    '</div>',
-  '</div>',
-
-  /* ── FOOTER ── */
-  '<table style="width:100%;border-collapse:collapse;background:#f9fafb;'
-    +'border-top:1px solid #e5e7eb"><tr>',
-    '<td style="padding:12px 24px">',
-      '<div style="color:#9ca3af;font-size:11px">GRF Treasury FX System &nbsp;&bull;&nbsp; Confidential</div>',
-      '<div style="color:#d1d5db;font-size:10px;margin-top:2px">Generated '+p.fmtDate+'</div>',
-    '</td>',
-    '<td style="text-align:right;padding:12px 24px">',
-      '<div style="color:#374151;font-size:13px;font-weight:600">Regards,</div>',
-      '<div style="color:#2563eb;font-size:13px;font-weight:700">Eldhose Scaria</div>',
-    '</td>',
-  '</tr></table>',
-
-  '</div>'
-  ].join('');
+  +'</div>';
 }
 
 
@@ -2198,6 +2225,8 @@ function clearHistory() {
 
 /* ═══ DELETE ═══ */
 function deleteRecord(id) {
+  var pwd = prompt('Enter password to delete this deal:');
+  if (pwd !== '987') { if (pwd !== null) alert('Incorrect password.'); return; }
   if (!confirm('Delete this deal? This cannot be undone.')) return;
   var d = dealHistory.find(function(x){ return x.id === id; });
   dealHistory = dealHistory.filter(function(x){ return x.id !== id; });
@@ -2208,6 +2237,8 @@ function deleteRecord(id) {
 
 /* ═══ EDIT MODAL ═══ */
 function openEditModal(id) {
+  var pwd = prompt('Enter password to edit this deal:');
+  if (pwd !== '987') { if (pwd !== null) alert('Incorrect password.'); return; }
   var d=dealHistory.find(function(x){return x.id===id;});
   if (!d) return;
   document.getElementById('em-id').value=id;
@@ -2509,25 +2540,57 @@ function buildDashCharts(deals) {
     return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
   }
 
-  // ── Chart 1: EUR/USD Rate ──
+  // ── Chart 1: EUR/USD Rate + Spot Rate ──
   if (eu.length) {
-    var euLbls = eu.map(dlbl);
+    var euLbls  = eu.map(dlbl);
     var euRates = eu.map(function(d){return parseFloat(d.bankRate)||null;});
+    var euSpots = eu.map(function(d){return parseFloat(d.spotRate)||null;});
+    var hasSpot = euSpots.some(function(s){return s!==null;});
+    var euDatasets = [{
+      label:'Bank Deal Rate',data:euRates,borderColor:'#3b82f6',
+      backgroundColor:'rgba(59,130,246,.06)',tension:.3,pointRadius:4,
+      pointBackgroundColor:'#3b82f6',fill:true,borderWidth:2
+    }];
+    if(hasSpot) euDatasets.push({
+      label:'Market Spot (Bid/Ask)',data:euSpots,borderColor:'#f59e0b',
+      backgroundColor:'transparent',tension:.3,pointRadius:3,
+      pointBackgroundColor:'#f59e0b',fill:false,borderWidth:1.5,
+      borderDash:[5,3]
+    });
     charts.rateEU = new Chart(document.getElementById('chartRateEURUSD'),{
       type:'line',
-      data:{labels:euLbls,datasets:[{data:euRates,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',tension:.3,pointRadius:4,pointBackgroundColor:'#3b82f6',fill:true,borderWidth:2,label:'EUR/USD'}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:makeScales(true,'Rate')}
+      data:{labels:euLbls,datasets:euDatasets},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,position:'top',
+          labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:8,boxWidth:10}}},
+        scales:makeScales(true,'Rate')}
     });
   }
 
-  // ── Chart 2: USD/ZAR Rate ──
+  // ── Chart 2: USD/ZAR Rate + Spot Rate ──
   if (za.length) {
-    var zaLbls = za.map(dlbl);
+    var zaLbls  = za.map(dlbl);
     var zaRates = za.map(function(d){return parseFloat(d.bankRate)||null;});
+    var zaSpots = za.map(function(d){return parseFloat(d.spotRate)||null;});
+    var hasZASpot = zaSpots.some(function(s){return s!==null;});
+    var zaDatasets = [{
+      label:'Bank Deal Rate',data:zaRates,borderColor:'#0d9488',
+      backgroundColor:'rgba(13,148,136,.06)',tension:.3,pointRadius:4,
+      pointBackgroundColor:'#0d9488',fill:true,borderWidth:2
+    }];
+    if(hasZASpot) zaDatasets.push({
+      label:'Market Spot (Bid/Ask)',data:zaSpots,borderColor:'#f59e0b',
+      backgroundColor:'transparent',tension:.3,pointRadius:3,
+      pointBackgroundColor:'#f59e0b',fill:false,borderWidth:1.5,
+      borderDash:[5,3]
+    });
     charts.rateZA = new Chart(document.getElementById('chartRateUSDZAR'),{
       type:'line',
-      data:{labels:zaLbls,datasets:[{data:zaRates,borderColor:'#0d9488',backgroundColor:'rgba(13,148,136,.08)',tension:.3,pointRadius:4,pointBackgroundColor:'#0d9488',fill:true,borderWidth:2,label:'USD/ZAR'}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:makeScales(true,'Rate')}
+      data:{labels:zaLbls,datasets:zaDatasets},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,position:'top',
+          labels:{font:{family:"'IBM Plex Sans'",size:11},color:'#6b7280',padding:8,boxWidth:10}}},
+        scales:makeScales(true,'Rate')}
     });
   }
 
@@ -3257,6 +3320,85 @@ function setBankSyncStatus(state) {
   }
 }
 
+/* ── Given By Manager functions ── */
+function openGivenByManager(){renderGivenByTable();document.getElementById('givenByModal').style.display='flex';document.body.style.overflow='hidden';}
+function closeGivenByModal(){document.getElementById('givenByModal').style.display='none';document.body.style.overflow='';populateGivenByDropdowns();}
+
+function renderGivenByTable(){
+  var rows=givenByMaster.map(function(g,i){
+    return '<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:8px 10px;font-family:IBM Plex Mono,monospace;font-size:12px;font-weight:700;color:var(--green)">'+g.id+'</td>'
+      +'<td style="padding:8px 10px;font-size:13px;color:var(--text2)">'+g.name+'</td>'
+      +'<td style="padding:8px 10px;text-align:center">'
+        +'<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px;color:var(--text3)">'
+          +'<input type="checkbox" '+(g.active?'checked':'')+' onchange="toggleGivenByActive('+i+',this.checked)"> Active'
+        +'</label></td>'
+      +'<td style="padding:8px 10px">'
+        +'<button onclick="deleteGivenBy('+i+')" style="font-size:11px;font-weight:600;padding:3px 10px;border:1px solid var(--red-bd);background:var(--red-bg);color:var(--red);border-radius:4px;cursor:pointer">Del</button>'
+      +'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('givenByTableWrap').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<thead><tr style="background:var(--surface2)">'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">ID</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Name</th>'
+    +'<th style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Status</th>'
+    +'<th style="padding:8px 10px;font-size:11px;color:var(--text3);font-weight:700">Actions</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function addGivenByPerson(){
+  var title=(document.getElementById('gb-title').value||'Mr.').trim();
+  var name=(document.getElementById('gb-name').value||'').trim();
+  if(!name){alert('Please enter a name');return;}
+  var fullName=title+' '+name;
+  var id=(title.replace(/[^A-Z]/gi,'').substring(0,2)+name.replace(/[^A-Za-z]/g,'').substring(0,3)).toUpperCase();
+  // Ensure unique ID
+  var exists=givenByMaster.findIndex(function(g){return g.id===id;});
+  if(exists>=0) id=id+(givenByMaster.length+1);
+  var person={id:id,name:fullName,title:title,active:true};
+  givenByMaster.push(person);
+  saveGivenByLocal(givenByMaster);
+  dbGivenByUpsert(person).then(function(){setGbSyncStatus('saved');});
+  document.getElementById('gb-name').value='';
+  renderGivenByTable();
+}
+
+function deleteGivenBy(i){
+  if(!confirm('Remove '+givenByMaster[i].name+'?')) return;
+  var pid=givenByMaster[i].id;
+  givenByMaster.splice(i,1);
+  saveGivenByLocal(givenByMaster);
+  dbGivenByDelete(pid).then(function(){setGbSyncStatus('saved');});
+  renderGivenByTable();
+}
+
+function toggleGivenByActive(i,val){
+  givenByMaster[i].active=val;
+  saveGivenByLocal(givenByMaster);
+  // Patch active status
+  if(SUPABASE_URL&&SUPABASE_KEY){
+    fetch(SUPABASE_URL+'/rest/v1/'+GIVENBY_TABLE+'?person_id=eq.'+encodeURIComponent(givenByMaster[i].id),{
+      method:'PATCH',headers:bankSbHeaders(),body:JSON.stringify({active:val})
+    }).catch(function(e){console.warn(e);});
+  }
+}
+
+function resetGivenByToDefault(){
+  if(!confirm('Reset to default people list?')) return;
+  givenByMaster=JSON.parse(JSON.stringify(DEFAULT_GIVENBY));
+  saveGivenByLocal(givenByMaster);
+  for(var i=0;i<givenByMaster.length;i++) dbGivenByUpsert(givenByMaster[i]);
+  renderGivenByTable();
+}
+
+function setGbSyncStatus(state){
+  var el=document.getElementById('gbSyncStatus');
+  if(!el) return;
+  if(state==='saved'){el.textContent='✓ Synced';setTimeout(function(){el.textContent='';},2500);}
+  else if(state==='syncing'){el.textContent='⏳ Syncing...';}
+}
+
 function forceSyncBanks() {
   if (DB_MODE !== 'supabase') {
     alert('Not connected to Supabase. Check your configuration in the ⚙ settings.');
@@ -3403,7 +3545,8 @@ async function loadHistoryFromSource() {
       saveHistory(dealHistory);
       renderHistory();
       updatePillCount();
-      initBanks(); // load banks from Supabase
+      initBanks();    // load banks
+      initGivenBy(); // load given-by
       return;
     } else {
       setDbStatus('local');
@@ -3416,7 +3559,8 @@ async function loadHistoryFromSource() {
   renderHistory();
   updatePillCount();
   setBankSyncStatus('local');
-  populateBankDropdown(); // use local banks
+  populateBankDropdown();
+  populateGivenByDropdowns();
 }
 
 /* ═══ INIT ═══ */
