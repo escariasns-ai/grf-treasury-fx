@@ -2017,83 +2017,120 @@ function buildEmailHtml(p) {
 }
 
 
-/* ═══ EML DOWNLOAD — OPEN IN OUTLOOK ═══ */
-function downloadEml(subject, htmlBody, dealNo) {
-  var boundary = 'GRF_BOUNDARY_' + Date.now();
-  var now      = new Date().toUTCString();
+/* ═══ PUSH TO OUTLOOK ═══ */
 
-  // Encode subject for non-ASCII characters
-  var encSubject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=';
+function pushToOutlook(subject, htmlBody) {
+  // Step 1: Copy the formatted HTML to clipboard
+  var copied = copyHtmlRich(htmlBody);
 
-  // Full HTML document
-  var fullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8">'
-    + '<style>body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;}</style>'
-    + '</head><body>' + htmlBody + '</body></html>';
-
-  // Base64 encode HTML — handles all special chars safely
-  var htmlB64 = btoa(unescape(encodeURIComponent(fullHtml)));
-
-  // Plain text fallback
-  var plainDiv = document.createElement('div');
-  plainDiv.innerHTML = htmlBody;
-  var plainText = plainDiv.innerText || plainDiv.textContent || 'Please view in HTML.';
-
-  // Build EML with proper MIME structure
-  var lines = [
-    'MIME-Version: 1.0',
-    'Date: ' + now,
-    'Subject: ' + encSubject,
-    'X-Unsent: 1',
-    'Content-Type: multipart/alternative;',
-    '	boundary="' + boundary + '"',
-    '',
-    '--' + boundary,
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: quoted-printable',
-    '',
-    plainText,
-    '',
-    '--' + boundary,
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    ''
-  ];
-
-  // Split base64 into 76-char lines (RFC 2822 requirement)
-  var b64Lines = [];
-  for (var i = 0; i < htmlB64.length; i += 76) {
-    b64Lines.push(htmlB64.substring(i, i + 76));
+  // Step 2: Also try Clipboard API as backup
+  if (!copied) {
+    try {
+      var blob = new Blob([htmlBody], {type:'text/html'});
+      navigator.clipboard.write([new ClipboardItem({'text/html': blob})]).catch(function(){});
+    } catch(e) {}
   }
 
-  var emlContent = lines.join('\r\n') + '\r\n' + b64Lines.join('\r\n') + '\r\n\r\n--' + boundary + '--\r\n';
+  // Step 3: Open Outlook compose via mailto: with subject pre-filled
+  //         (mailto: is the only cross-platform way to open Outlook from browser)
+  var mailtoHref = 'mailto:?subject=' + encodeURIComponent(subject);
+  window.location.href = mailtoHref;
 
-  // Download as .eml
-  var blob = new Blob([emlContent], {type: 'message/rfc822'});
-  var url  = URL.createObjectURL(blob);
-  var a    = document.createElement('a');
-  a.href   = url;
-  a.download = 'GRF_Deal_' + (dealNo || 'FX') + '.eml';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+  // Step 4: Show instruction overlay
+  showOutlookInstructions();
+}
+
+function showOutlookInstructions() {
+  var overlay = document.getElementById('outlookHelpOverlay');
+  if (overlay) { overlay.style.display = 'flex'; return; }
+
+  overlay = document.createElement('div');
+  overlay.id = 'outlookHelpOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;'
+    +'display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;max-width:460px;width:100%;'
+    +'box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;">'
+
+    // Header
+    +'<div style="background:#0078d4;padding:16px 22px;display:flex;align-items:center;gap:10px">'
+      +'<span style="font-size:22px">&#128233;</span>'
+      +'<div style="color:#fff;font-size:16px;font-weight:700">Opening Outlook</div>'
+    +'</div>'
+
+    // Steps
+    +'<div style="padding:22px 24px">'
+      +'<div style="font-size:13px;color:#374151;margin-bottom:16px;line-height:1.6">'
+        +'Outlook is opening with the subject pre-filled. '
+        +'The formatted email is <b style="color:#0078d4">copied to your clipboard</b>.'
+      +'</div>'
+
+      +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">'
+
+        +'<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;'
+          +'background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">'
+          +'<div style="background:#0078d4;color:#fff;width:24px;height:24px;border-radius:50%;'
+            +'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">1</div>'
+          +'<div style="font-size:13px;color:#1e40af"><b>Outlook is opening</b> — wait for the compose window</div>'
+        +'</div>'
+
+        +'<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;'
+          +'background:#f0fdf4;border-radius:8px;border:1px solid #86efac">'
+          +'<div style="background:#16a34a;color:#fff;width:24px;height:24px;border-radius:50%;'
+            +'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">2</div>'
+          +'<div style="font-size:13px;color:#15803d">'
+            +'Click inside the <b>email body</b> area'
+          +'</div>'
+        +'</div>'
+
+        +'<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;'
+          +'background:#faf5ff;border-radius:8px;border:1px solid #d8b4fe">'
+          +'<div style="background:#7c3aed;color:#fff;width:24px;height:24px;border-radius:50%;'
+            +'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">3</div>'
+          +'<div style="font-size:13px;color:#6d28d9">'
+            +'Press <b style="background:#e8e8e8;padding:2px 8px;border-radius:4px;font-family:monospace">Ctrl + V</b>'
+            +' &nbsp;— formatted email pastes in'
+          +'</div>'
+        +'</div>'
+
+      +'</div>'
+
+      +'<div style="display:flex;gap:8px">'
+        +'<button onclick="document.getElementById(\'outlookHelpOverlay\').style.display=\'none\'" '
+          +'style="flex:1;padding:10px;background:#0078d4;color:#fff;border:none;border-radius:6px;'
+          +'font-size:14px;font-weight:600;cursor:pointer;font-family:Arial">Got it!</button>'
+        +'<button onclick="reCopyEmail(this)" '
+          +'style="padding:10px 16px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;'
+          +'font-size:13px;font-weight:600;cursor:pointer;font-family:Arial">&#128203; Re-copy</button>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+
+  document.body.appendChild(overlay);
+  // Auto-close after 25 seconds
+  setTimeout(function(){ if(overlay.parentNode) overlay.style.display='none'; }, 25000);
+}
+
+function reCopyEmail(btn) {
+  var htmlBody = document.getElementById('emailBody')
+    ? document.getElementById('emailBody').innerHTML
+    : (document.getElementById('prevEmailBody') ? document.getElementById('prevEmailBody').innerHTML : '');
+  copyHtmlRich(htmlBody);
+  if (btn) { btn.textContent = '\u2714 Copied!'; setTimeout(function(){ btn.textContent = '\uD83D\uDCCB Re-copy'; }, 2000); }
 }
 
 function openOutlookEmail() {
   var subject  = document.getElementById('emailSubject').textContent;
   var htmlBody = document.getElementById('emailBody').innerHTML;
-  // Extract deal no from subject for filename
-  var dealNoMatch = subject.match(/Deal No\.\s*(\S+)/);
-  var dealNo = dealNoMatch ? dealNoMatch[1] : 'deal';
-  downloadEml(subject, htmlBody, dealNo);
+  pushToOutlook(subject, htmlBody);
 }
 
 function openOutlookPreview() {
   var subject  = document.getElementById('prevEmailSubject').textContent;
   var htmlBody = document.getElementById('prevEmailBody').innerHTML;
-  var dealNoMatch = subject.match(/Deal No\.\s*(\S+)/);
-  var dealNo = dealNoMatch ? dealNoMatch[1] : 'deal';
-  downloadEml(subject, htmlBody, dealNo);
+  pushToOutlook(subject, htmlBody);
 }
+
 
 /* ═══ CONFIRM DEAL ═══ */
 function confirmDeal() {
