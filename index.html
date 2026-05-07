@@ -537,11 +537,8 @@ tbody tr:hover{background:var(--surface2);}
         </select>
       </div>
       <div class="fg"><label class="flbl">Given By</label>
-        <select class="fi fi-sel" id="givenBy">
+        <select class="fi fi-sel" id="givenBy" onchange="onGivenByChange('givenBy','dealBank')">
           <option value="">-- Select --</option>
-          <option value="Ms. Mariam">Ms. Mariam</option>
-          <option value="Mr. Assan">Mr. Assan</option>
-          <option value="Mr. Farkhan">Mr. Farkhan</option>
         </select>
       </div>
     </div>
@@ -585,7 +582,14 @@ tbody tr:hover{background:var(--surface2);}
   <div class="ewrap">
     <div class="etb">
       <div class="etbt">&#128231; Deal Confirmation Email &mdash; Ready to Send</div>
-      <button class="cpbtn" id="copyBtn" onclick="copyEmail()">&#128203; Copy &amp; Paste to Outlook</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="cpbtn" onclick="openOutlookEmail()" style="background:#0078d4">
+          &#128233; Open in Outlook
+        </button>
+        <button class="cpbtn" id="copyBtn" onclick="copyEmail()">
+          &#128203; Copy HTML
+        </button>
+      </div>
     </div>
     <div class="esub"><b>Subject: </b><span id="emailSubject"></span></div>
     <div class="ebody" id="emailBody" style="padding:16px;background:#e5e7eb;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;max-height:600px;overflow-y:auto"></div>
@@ -899,14 +903,19 @@ tbody tr:hover{background:var(--surface2);}
       <div id="givenByTableWrap"></div>
       <div style="margin-top:14px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs)">
         <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Add Person</div>
-        <div style="display:grid;grid-template-columns:70px 1fr 80px;gap:8px;align-items:end">
+        <div style="display:grid;grid-template-columns:70px 1fr 1fr 80px;gap:8px;align-items:end">
           <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">Title</label>
             <select class="em-fi em-fi-sel" id="gb-title" style="font-size:13px">
               <option>Ms.</option><option>Mr.</option><option>Dr.</option>
             </select>
           </div>
           <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">Full Name</label>
-            <input class="em-fi" type="text" id="gb-name" placeholder="First and Last name" style="font-size:13px">
+            <input class="em-fi" type="text" id="gb-name" placeholder="e.g. Mariam Hassan" style="font-size:13px">
+          </div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:4px">Bank</label>
+            <select class="em-fi em-fi-sel" id="gb-bank" style="font-size:13px">
+              <option value="">-- No Bank --</option>
+            </select>
           </div>
           <div><button onclick="addGivenByPerson()" class="em-save" style="padding:9px;width:100%">Add</button></div>
         </div>
@@ -1036,11 +1045,8 @@ tbody tr:hover{background:var(--surface2);}
           </select>
         </div>
         <div class="em-fg"><label class="em-lbl">Given By</label>
-          <select class="em-fi em-fi-sel" id="em-givenBy">
+          <select class="em-fi em-fi-sel" id="em-givenBy" onchange="onGivenByChange('em-givenBy','em-bank')">
             <option value="">-- Select --</option>
-            <option value="Ms. Mariam">Ms. Mariam</option>
-            <option value="Mr. Assan">Mr. Assan</option>
-            <option value="Mr. Farkhan">Mr. Farkhan</option>
           </select>
         </div>
       </div>
@@ -1070,10 +1076,10 @@ var STORAGE_KEY  = 'fx_deal_history_v2';
 var BANKS_KEY    = 'grf_banks_config';
 var GIVENBY_KEY  = 'grf_givenby_config';
 var DEFAULT_GIVENBY = [
-  {id:'MRM', name:'Ms. Mariam',   title:'Ms.',  active:true},
-  {id:'ASN', name:'Mr. Assan',    title:'Mr.',  active:true},
-  {id:'FRK', name:'Mr. Farkhan',  title:'Mr.',  active:true},
-  {id:'RSW', name:'Mr. Riswan',   title:'Mr.',  active:true},
+  {id:'MRM', name:'Ms. Mariam',   title:'Ms.', bankId:'MSH',  active:true},
+  {id:'ASN', name:'Mr. Assan',    title:'Mr.', bankId:'NBD',  active:true},
+  {id:'FRK', name:'Mr. Farkhan',  title:'Mr.', bankId:'CITI', active:true},
+  {id:'RSW', name:'Mr. Riswan',   title:'Mr.', bankId:'HBZ',  active:true},
 ];
 function loadGivenBy(){
   try{var s=localStorage.getItem(GIVENBY_KEY);
@@ -1094,7 +1100,7 @@ async function dbGivenByLoadAll(){
     if(!res.ok) throw new Error('HTTP '+res.status);
     var rows=await res.json();
     if(!Array.isArray(rows)||rows.length===0) return null;
-    return rows.map(function(r){return{id:r.person_id,name:r.name,title:r.title||'',active:r.active!==false};});
+    return rows.map(function(r){return{id:r.person_id,name:r.name,title:r.title||'',bankId:r.bank_id||'',active:r.active!==false};});
   }catch(e){console.warn('GivenBy load:',e.message);return null;}
 }
 async function dbGivenByUpsert(g){
@@ -1103,7 +1109,7 @@ async function dbGivenByUpsert(g){
     await fetch(SUPABASE_URL+'/rest/v1/'+GIVENBY_TABLE+'?on_conflict=person_id',{
       method:'POST',
       headers:Object.assign({},bankSbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),
-      body:JSON.stringify({person_id:g.id,name:g.name,title:g.title||'',active:g.active!==false})
+      body:JSON.stringify({person_id:g.id,name:g.name,title:g.title||'',bank_id:g.bankId||'',active:g.active!==false})
     });
   }catch(e){console.warn('GivenBy upsert:',e.message);}
 }
@@ -1129,10 +1135,25 @@ function populateGivenByDropdowns(){
     var cur=sel.value;
     sel.innerHTML='<option value="">-- Select --</option>';
     getActiveGivenBy().forEach(function(g){
-      var o=document.createElement('option');o.value=g.name;o.textContent=g.name;sel.appendChild(o);
+      var o=document.createElement('option');
+      o.value=g.name;
+      o.textContent=g.name+(g.bankId?' ('+g.bankId+')':'');
+      o.setAttribute('data-bank',g.bankId||'');
+      sel.appendChild(o);
     });
     if(cur) sel.value=cur;
   });
+}
+
+/* Auto-fill bank when Given By is selected */
+function onGivenByChange(selId, bankSelId) {
+  var sel     = document.getElementById(selId);
+  var bankSel = document.getElementById(bankSelId);
+  if (!sel || !bankSel) return;
+  var opt = sel.options[sel.selectedIndex];
+  if (!opt) return;
+  var bankId = opt.getAttribute('data-bank') || '';
+  if (bankId) bankSel.value = bankId;
 }
 
 // Default banks with standard pip margins per pair
@@ -1981,6 +2002,63 @@ function buildEmailHtml(p) {
   +'</div>';
 }
 
+
+/* ═══ EML DOWNLOAD — OPEN IN OUTLOOK ═══ */
+function downloadEml(subject, htmlBody, dealNo) {
+  var boundary = 'GRF_' + Date.now();
+  var now = new Date().toUTCString();
+  var safeSub = subject.replace(/[^ -~]/g, function(c){ return '=?UTF-8?B?'+btoa(c)+'?='; });
+
+  var eml = [
+    'MIME-Version: 1.0',
+    'Date: ' + now,
+    'Subject: ' + subject,
+    'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+    'X-Unsent: 1',
+    '',
+    '--' + boundary,
+    'Content-Type: text/plain; charset=utf-8',
+    'Content-Transfer-Encoding: 7bit',
+    '',
+    'Please view this email in HTML format.',
+    '',
+    '--' + boundary,
+    'Content-Type: text/html; charset=utf-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>',
+    htmlBody,
+    '</body></html>',
+    '',
+    '--' + boundary + '--'
+  ].join('\r\n');
+
+  var blob = new Blob([eml], {type: 'message/rfc822'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href   = url;
+  a.download = 'GRF_Deal_' + (dealNo || 'confirmation') + '.eml';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+}
+
+function openOutlookEmail() {
+  var subject  = document.getElementById('emailSubject').textContent;
+  var htmlBody = document.getElementById('emailBody').innerHTML;
+  // Extract deal no from subject for filename
+  var dealNoMatch = subject.match(/Deal No\.\s*(\S+)/);
+  var dealNo = dealNoMatch ? dealNoMatch[1] : 'deal';
+  downloadEml(subject, htmlBody, dealNo);
+}
+
+function openOutlookPreview() {
+  var subject  = document.getElementById('prevEmailSubject').textContent;
+  var htmlBody = document.getElementById('prevEmailBody').innerHTML;
+  var dealNoMatch = subject.match(/Deal No\.\s*(\S+)/);
+  var dealNo = dealNoMatch ? dealNoMatch[1] : 'deal';
+  downloadEml(subject, htmlBody, dealNo);
+}
 
 /* ═══ CONFIRM DEAL ═══ */
 function confirmDeal() {
@@ -3321,14 +3399,29 @@ function setBankSyncStatus(state) {
 }
 
 /* ── Given By Manager functions ── */
-function openGivenByManager(){renderGivenByTable();document.getElementById('givenByModal').style.display='flex';document.body.style.overflow='hidden';}
+function openGivenByManager(){
+  renderGivenByTable();
+  // Populate bank dropdown in add form
+  var gbBankSel=document.getElementById('gb-bank');
+  if(gbBankSel){
+    gbBankSel.innerHTML='<option value="">-- No Bank --</option>';
+    getActiveBanks().forEach(function(b){
+      var o=document.createElement('option');o.value=b.id;o.textContent=b.id+' — '+b.name;gbBankSel.appendChild(o);
+    });
+  }
+  document.getElementById('givenByModal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
 function closeGivenByModal(){document.getElementById('givenByModal').style.display='none';document.body.style.overflow='';populateGivenByDropdowns();}
 
 function renderGivenByTable(){
   var rows=givenByMaster.map(function(g,i){
+    var bk=getBankById(g.bankId);
+    var bkLabel=bk?'<span style="font-weight:700;color:var(--accent)">'+bk.id+'</span> '+bk.name.split('(')[0].trim():'<span style="color:var(--text4)">—</span>';
     return '<tr style="border-bottom:1px solid var(--border)">'
       +'<td style="padding:8px 10px;font-family:IBM Plex Mono,monospace;font-size:12px;font-weight:700;color:var(--green)">'+g.id+'</td>'
       +'<td style="padding:8px 10px;font-size:13px;color:var(--text2)">'+g.name+'</td>'
+      +'<td style="padding:8px 10px;font-size:12px;">'+bkLabel+'</td>'
       +'<td style="padding:8px 10px;text-align:center">'
         +'<label style="display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:12px;color:var(--text3)">'
           +'<input type="checkbox" '+(g.active?'checked':'')+' onchange="toggleGivenByActive('+i+',this.checked)"> Active'
@@ -3342,6 +3435,7 @@ function renderGivenByTable(){
     +'<thead><tr style="background:var(--surface2)">'
     +'<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">ID</th>'
     +'<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Name</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Bank</th>'
     +'<th style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Status</th>'
     +'<th style="padding:8px 10px;font-size:11px;color:var(--text3);font-weight:700">Actions</th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table>';
@@ -3350,18 +3444,19 @@ function renderGivenByTable(){
 function addGivenByPerson(){
   var title=(document.getElementById('gb-title').value||'Mr.').trim();
   var name=(document.getElementById('gb-name').value||'').trim();
+  var bankId=(document.getElementById('gb-bank')?document.getElementById('gb-bank').value:'');
   if(!name){alert('Please enter a name');return;}
   var fullName=title+' '+name;
   var id=(title.replace(/[^A-Z]/gi,'').substring(0,2)+name.replace(/[^A-Za-z]/g,'').substring(0,3)).toUpperCase();
-  // Ensure unique ID
   var exists=givenByMaster.findIndex(function(g){return g.id===id;});
   if(exists>=0) id=id+(givenByMaster.length+1);
-  var person={id:id,name:fullName,title:title,active:true};
+  var person={id:id,name:fullName,title:title,bankId:bankId,active:true};
   givenByMaster.push(person);
   saveGivenByLocal(givenByMaster);
   dbGivenByUpsert(person).then(function(){setGbSyncStatus('saved');});
   document.getElementById('gb-name').value='';
   renderGivenByTable();
+  populateGivenByDropdowns();
 }
 
 function deleteGivenBy(i){
