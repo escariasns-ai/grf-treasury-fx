@@ -1932,7 +1932,26 @@ function buildEmailHtml(p) {
       +'<td style="padding:8px 14px;font-size:13px;font-weight:600;color:#374151;'
       +'background:#f9fafb;border:1px solid #e5e7eb;width:40%">'+label+'</td>'
       +'<td style="padding:8px 14px;font-size:13px;color:#111827;'
-      +'border:1px solid #e5e7eb;font-family:Consolas,\'Courier New\',monospace">'+val+'</td>'
+      +'border:1px solid #e5e7eb;font-family:Consolas,monospace">'+val+'</td>'
+      +'</tr>';
+  }
+
+  // Amount row with words in smaller colored text below
+  function trAmt(label, dispAmt, numAmt, ccy) {
+    var words = '';
+    try {
+      var n = parseFloat(String(numAmt || dispAmt).replace(/,/g,''));
+      if (!isNaN(n) && n > 0) words = numberToWords(n, ccy);
+    } catch(e){}
+    return '<tr>'
+      +'<td style="padding:8px 14px;font-size:13px;font-weight:600;color:#374151;'
+      +'background:#f9fafb;border:1px solid #e5e7eb;width:40%">'+label+'</td>'
+      +'<td style="padding:8px 14px;border:1px solid #e5e7eb">'
+        +'<span style="font-size:14px;font-weight:700;color:#111827;'
+        +'font-family:Consolas,monospace">'+dispAmt+'</span>'
+        +(words ? '<br><span style="font-size:10.5px;color:#6366f1;font-style:italic;'
+          +'font-family:Arial,sans-serif;font-weight:400">('+words+')</span>' : '')
+      +'</td>'
       +'</tr>';
   }
 
@@ -1959,13 +1978,8 @@ function buildEmailHtml(p) {
   /* Details table */
   +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'
   +tr('Deal Rate',   p.bankRate)
-  +tr(p.ccy1+' Amount', p.amtCcy1
-    +'<br><span style="font-size:11px;color:#9ca3af;font-style:italic;font-family:Arial">'
-    +'('+p.amtInWords.replace(p.ccy2,'').replace(p.ccy1,'').trim().replace(/\s+/,' ')
-    +' '+p.ccy1+')</span>')
-  +tr(p.ccy2+' Amount', p.amtCcy2
-    +'<br><span style="font-size:11px;color:#9ca3af;font-style:italic;font-family:Arial">'
-    +'('+p.amtInWords+')</span>')
+  +trAmt(p.ccy1+' Amount', p.amtCcy1, p.amtCcy1Num, p.ccy1)
+  +trAmt(p.ccy2+' Amount', p.amtCcy2, p.amtCcy2Num, p.ccy2)
   +tr('Value Date',  p.fmtDate)
   +tr('Bank',        p.bankName)
   +tr('Given By',    p.givenBy)
@@ -2005,42 +2019,63 @@ function buildEmailHtml(p) {
 
 /* ═══ EML DOWNLOAD — OPEN IN OUTLOOK ═══ */
 function downloadEml(subject, htmlBody, dealNo) {
-  var boundary = 'GRF_' + Date.now();
-  var now = new Date().toUTCString();
-  var safeSub = subject.replace(/[^ -~]/g, function(c){ return '=?UTF-8?B?'+btoa(c)+'?='; });
+  var boundary = 'GRF_BOUNDARY_' + Date.now();
+  var now      = new Date().toUTCString();
 
-  var eml = [
+  // Encode subject for non-ASCII characters
+  var encSubject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=';
+
+  // Full HTML document
+  var fullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+    + '<style>body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;}</style>'
+    + '</head><body>' + htmlBody + '</body></html>';
+
+  // Base64 encode HTML — handles all special chars safely
+  var htmlB64 = btoa(unescape(encodeURIComponent(fullHtml)));
+
+  // Plain text fallback
+  var plainDiv = document.createElement('div');
+  plainDiv.innerHTML = htmlBody;
+  var plainText = plainDiv.innerText || plainDiv.textContent || 'Please view in HTML.';
+
+  // Build EML with proper MIME structure
+  var lines = [
     'MIME-Version: 1.0',
     'Date: ' + now,
-    'Subject: ' + subject,
-    'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+    'Subject: ' + encSubject,
     'X-Unsent: 1',
+    'Content-Type: multipart/alternative;',
+    '	boundary="' + boundary + '"',
     '',
     '--' + boundary,
-    'Content-Type: text/plain; charset=utf-8',
-    'Content-Transfer-Encoding: 7bit',
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: quoted-printable',
     '',
-    'Please view this email in HTML format.',
+    plainText,
     '',
     '--' + boundary,
-    'Content-Type: text/html; charset=utf-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>',
-    htmlBody,
-    '</body></html>',
-    '',
-    '--' + boundary + '--'
-  ].join('\r\n');
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    ''
+  ];
 
-  var blob = new Blob([eml], {type: 'message/rfc822'});
+  // Split base64 into 76-char lines (RFC 2822 requirement)
+  var b64Lines = [];
+  for (var i = 0; i < htmlB64.length; i += 76) {
+    b64Lines.push(htmlB64.substring(i, i + 76));
+  }
+
+  var emlContent = lines.join('\r\n') + '\r\n' + b64Lines.join('\r\n') + '\r\n\r\n--' + boundary + '--\r\n';
+
+  // Download as .eml
+  var blob = new Blob([emlContent], {type: 'message/rfc822'});
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   a.href   = url;
-  a.download = 'GRF_Deal_' + (dealNo || 'confirmation') + '.eml';
+  a.download = 'GRF_Deal_' + (dealNo || 'FX') + '.eml';
   document.body.appendChild(a);
   a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
 }
 
 function openOutlookEmail() {
@@ -2122,23 +2157,25 @@ function confirmDeal() {
   var amtInWords = numberToWords(wordsAmt, wordsCcy);
   var subject = 'Forex Deal Confirmation – '+typeLabel+' – '+fmtDate+' – Deal No. '+dealNo;
   var emailParams = {
-    typeLabel:  typeLabel,
-    pairLabel:  cfg.label,
-    ccy1:       cfg.ccy1,
-    ccy2:       cfg.ccy2,
-    amtCcy1:    fmtN(amtCcy1.toFixed(0)),
-    amtCcy2:    fmtN(amtCcy2.toFixed(2)),
-    bankRate:   bankRate.toFixed(cfg.decimals),
-    spotRate:   (refRateCD?refRateCD.toFixed(cfg.decimals):'N/A'),
-    refLbl:     refLblCD,
-    margDiff:   margDiff,
-    pipsVal:    pipsVal,
-    pipCls:     (parseFloat(pipsVal)<5?'stellar':parseFloat(pipsVal)<=7?'ok':parseFloat(pipsVal)<=8?'caution':parseFloat(pipsVal)<=9?'warn':'bad'),
-    dealNo:     dealNo,
-    fmtDate:    fmtDate,
-    givenBy:    givenBy,
-    bankName:   bankName||'—',
-    amtInWords: amtInWords
+    typeLabel:   typeLabel,
+    pairLabel:   cfg.label,
+    ccy1:        cfg.ccy1,
+    ccy2:        cfg.ccy2,
+    amtCcy1:     fmtN(amtCcy1.toFixed(0)),
+    amtCcy2:     fmtN(amtCcy2.toFixed(2)),
+    amtCcy1Num:  amtCcy1,
+    amtCcy2Num:  amtCcy2,
+    bankRate:    bankRate.toFixed(cfg.decimals),
+    spotRate:    (refRateCD?refRateCD.toFixed(cfg.decimals):'N/A'),
+    refLbl:      refLblCD,
+    margDiff:    margDiff,
+    pipsVal:     pipsVal,
+    pipCls:      (parseFloat(pipsVal)<5?'stellar':parseFloat(pipsVal)<=7?'ok':parseFloat(pipsVal)<=8?'caution':parseFloat(pipsVal)<=9?'warn':'bad'),
+    dealNo:      dealNo,
+    fmtDate:     fmtDate,
+    givenBy:     givenBy,
+    bankName:    bankName||'—',
+    amtInWords:  amtInWords
   };
   // Adjust pipCls for ZAR
   if (currentPair==='USDZAR') {
@@ -3542,23 +3579,25 @@ function openEmailPreview(id) {
   }
   var subject = 'Forex Deal Confirmation – '+typeLabel+' – '+(d.valueDate||'—')+' – Deal No. '+(d.dealNo||'—');
   var params = {
-    typeLabel:  typeLabel,
-    pairLabel:  cfg2.label,
-    ccy1:       d.ccy1||cfg2.ccy1,
-    ccy2:       d.ccy2||cfg2.ccy2,
-    amtCcy1:    Number(d.amtCcy1||0).toLocaleString('en-US'),
-    amtCcy2:    Number(d.amtCcy2||0).toLocaleString('en-US'),
-    bankRate:   d.bankRate||'—',
-    spotRate:   d.spotRate||'—',
-    refLbl:     isSellEP?'Bid':'Ask',
-    margDiff:   d.margDiff||'—',
-    pipsVal:    d.pips||'—',
-    pipCls:     pipCls2,
-    dealNo:     d.dealNo||'—',
-    fmtDate:    d.valueDate||'—',
-    givenBy:    d.givenBy||'—',
-    bankName:   d.bankName||d.bank||'—',
-    amtInWords: d.amtWords||'—'
+    typeLabel:   typeLabel,
+    pairLabel:   cfg2.label,
+    ccy1:        d.ccy1||cfg2.ccy1,
+    ccy2:        d.ccy2||cfg2.ccy2,
+    amtCcy1:     Number(d.amtCcy1||0).toLocaleString('en-US'),
+    amtCcy2:     Number(d.amtCcy2||0).toLocaleString('en-US'),
+    amtCcy1Num:  parseFloat(d.amtCcy1)||0,
+    amtCcy2Num:  parseFloat(d.amtCcy2)||0,
+    bankRate:    d.bankRate||'—',
+    spotRate:    d.spotRate||'—',
+    refLbl:      isSellEP?'Bid':'Ask',
+    margDiff:    d.margDiff||'—',
+    pipsVal:     d.pips||'—',
+    pipCls:      pipCls2,
+    dealNo:      d.dealNo||'—',
+    fmtDate:     d.valueDate||'—',
+    givenBy:     d.givenBy||'—',
+    bankName:    d.bankName||d.bank||'—',
+    amtInWords:  d.amtWords||'—'
   };
   var body = buildEmailHtml(params);
   document.getElementById('prevEmailSubject').textContent = subject;
