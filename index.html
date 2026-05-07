@@ -1202,10 +1202,10 @@ function skipConfig() {
 }
 function openConfig() {
   var cfg = getConfig();
-  document.getElementById('cfg-url').value     = cfg.url        || '';
-  document.getElementById('cfg-key').value     = cfg.key        || '';
+  document.getElementById('cfg-url').value     = cfg.url        || 'https://yeqhplhlnfmgakcdayfk.supabase.co';
+  document.getElementById('cfg-key').value     = cfg.key        || 'sb_publishable_JXQkSHzlHv_Bm0IbNoMQ-Q_egZ4-N0j';
   document.getElementById('cfg-pass').value    = cfg.pass       || '';
-  document.getElementById('cfg-ratekey').value = cfg.rateApiKey || '';
+  document.getElementById('cfg-ratekey').value = cfg.rateApiKey || 'cc7738b264674098a332fbf66ef8adad';
   document.getElementById('cfg-ok-msg').style.display = 'none';
   document.getElementById('cfg-err-msg').style.display = 'none';
   document.getElementById('configModal').style.display = 'flex';
@@ -1215,8 +1215,8 @@ function closeConfigModal() {
 }
 
 /* ═══ SUPABASE API ═══ */
-var SUPABASE_URL = '';
-var SUPABASE_KEY = '';
+var SUPABASE_URL = 'https://yeqhplhlnfmgakcdayfk.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_JXQkSHzlHv_Bm0IbNoMQ-Q_egZ4-N0j';
 
 function sbHeaders() {
   return {
@@ -2747,18 +2747,29 @@ async function fetchLiveRates() {
   var result = null;
   var cfg = getConfig();
 
-  if (!cfg.rateApiKey) {
-    setLrcStatus('error', 'No API key — click ⚙ to add your Twelve Data key');
-    showLrcNoKey();
-    document.getElementById('lrcRefreshBtn').disabled = false;
-    document.getElementById('lrcRefreshBtn').textContent = '↻ Refresh';
-    return;
-  }
+  var TWELVE_DATA_KEY = 'cc7738b264674098a332fbf66ef8adad';
+  var activeRateKey = (cfg && cfg.rateApiKey) ? cfg.rateApiKey : TWELVE_DATA_KEY;
 
-  try {
-    result = await fetchViaTwelveData(cfg.rateApiKey);
-  } catch(e) {
-    console.warn('Twelve Data error:', e.message);
+  // Try all sources in order until one succeeds
+  var sources = [
+    { name: 'Twelve Data',     fn: function(){ return fetchViaTwelveData(activeRateKey); } },
+    { name: 'Yahoo Finance',   fn: fetchViaYahoo },
+    { name: 'Open ER API',     fn: fetchViaOpenER },
+    { name: 'Frankfurter/ECB', fn: fetchViaFrankfurter }
+  ];
+
+  for (var si = 0; si < sources.length; si++) {
+    try {
+      setLrcStatus('loading', 'Trying ' + sources[si].name + '...');
+      result = await sources[si].fn();
+      if (result && result.eurusd) {
+        console.log('Rate fetched from: ' + sources[si].name);
+        break;
+      }
+    } catch(e) {
+      console.warn(sources[si].name + ' failed: ' + e.message);
+      result = null;
+    }
   }
 
   if (result) {
@@ -2796,34 +2807,99 @@ function startLrcCountdown(secs) {
   }, 1000);
 }
 
-/* PRIMARY: Twelve Data live forex (requires free API key — see config) */
+/* ═══ LIVE RATE SOURCES ═══
+ * Tries 4 sources in order. All use XHR (avoids fetch/CORS preflight issues).
+ * Works from GitHub Pages (HTTPS). Local file:// needs a web server.
+ */
+
+function xhrGet(url, timeoutMs) {
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.timeout = timeoutMs || 8000;
+    xhr.open('GET', url);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { reject(new Error('JSON parse error')); }
+      } else {
+        reject(new Error('HTTP ' + xhr.status));
+      }
+    };
+    xhr.onerror   = function() { reject(new Error('Network error')); };
+    xhr.ontimeout = function() { reject(new Error('Timeout after ' + timeoutMs + 'ms')); };
+    xhr.send();
+  });
+}
+
+/* Source 1: Twelve Data — live interbank rates */
 function fetchViaTwelveData(apiKey) {
-  var url = 'https://api.twelvedata.com/price?symbol=EUR/USD,USD/ZAR&apikey=' + apiKey;
-  var fetchP = fetch(url).then(function(res) {
-    if (!res.ok) throw new Error('TwelveData HTTP ' + res.status);
-    return res.json();
-  }).then(function(data) {
-    // TwelveData returns { "EUR/USD": { price: "1.08520" }, "USD/ZAR": { price: "18.45" } }
-    // OR single object if one symbol
-    var eurusd, usdzar;
-    if (data['EUR/USD']) {
-      eurusd  = parseFloat(data['EUR/USD'].price);
-      usdzar  = data['USD/ZAR'] ? parseFloat(data['USD/ZAR'].price) : null;
-    } else if (data.price) {
-      eurusd = parseFloat(data.price);
-    } else if (data.code) {
-      throw new Error('TwelveData error: ' + (data.message || data.code));
+  // Two parallel calls (one per symbol is more reliable than combined)
+  var urlEU = 'https://api.twelvedata.com/price?symbol=EUR%2FUSD&apikey=' + apiKey;
+  var urlZA = 'https://api.twelvedata.com/price?symbol=USD%2FZAR&apikey=' + apiKey;
+  return Promise.all([
+    xhrGet(urlEU, 8000).catch(function(){ return null; }),
+    xhrGet(urlZA, 8000).catch(function(){ return null; })
+  ]).then(function(results) {
+    var dEU = results[0], dZA = results[1];
+    if (!dEU || dEU.code || !dEU.price) throw new Error('Twelve Data: ' + (dEU && dEU.message ? dEU.message : 'no EUR/USD price'));
+    var eurusd = parseFloat(dEU.price);
+    var usdzar = dZA && !dZA.code && dZA.price ? parseFloat(dZA.price) : null;
+    if (isNaN(eurusd) || eurusd < 0.5 || eurusd > 3) throw new Error('Invalid EUR/USD: ' + eurusd);
+    return { eurusd: eurusd, usdzar: usdzar, source: 'Twelve Data (Live)', indicative: false };
+  });
+}
+
+/* Source 2: Yahoo Finance — near-live, no key, works from HTTPS */
+function fetchViaYahoo() {
+  var urlEU = 'https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=1m&range=1d';
+  var urlZA = 'https://query1.finance.yahoo.com/v8/finance/chart/USDZAR%3DX?interval=1m&range=1d';
+  return Promise.all([
+    xhrGet(urlEU, 8000).catch(function(){ return null; }),
+    xhrGet(urlZA, 8000).catch(function(){ return null; })
+  ]).then(function(results) {
+    var dEU = results[0], dZA = results[1];
+    var eurusd = null, usdzar = null;
+    if (dEU && dEU.chart && dEU.chart.result && dEU.chart.result[0]) {
+      eurusd = dEU.chart.result[0].meta.regularMarketPrice;
     }
-    if (!eurusd || isNaN(eurusd) || eurusd < 0.5 || eurusd > 3) throw new Error('Invalid EUR/USD from TwelveData');
+    if (dZA && dZA.chart && dZA.chart.result && dZA.chart.result[0]) {
+      usdzar = dZA.chart.result[0].meta.regularMarketPrice;
+    }
+    if (!eurusd || isNaN(eurusd) || eurusd < 0.5 || eurusd > 3) throw new Error('Yahoo: no valid EUR/USD');
+    return { eurusd: parseFloat(eurusd), usdzar: usdzar ? parseFloat(usdzar) : null, source: 'Yahoo Finance (Near-live)', indicative: false };
+  });
+}
+
+/* Source 3: Open ER API — free, CORS *, daily ECB rate */
+function fetchViaOpenER() {
+  return xhrGet('https://open.er-api.com/v6/latest/EUR', 8000).then(function(d) {
+    if (!d || d.result !== 'success') throw new Error('OpenER: failed');
+    var eurusd = d.rates && d.rates.USD;
+    var eurzar = d.rates && d.rates.ZAR;
+    if (!eurusd) throw new Error('OpenER: no USD rate');
     return {
-      eurusd:    eurusd,
-      usdzar:    (usdzar && !isNaN(usdzar) && usdzar > 5) ? usdzar : null,
-      source:    'Twelve Data (Live interbank)',
-      indicative: false
+      eurusd: parseFloat(eurusd),
+      usdzar: eurzar ? parseFloat((eurzar / eurusd).toFixed(4)) : null,
+      source: 'Open ER API (Daily ECB)',
+      indicative: true
     };
   });
-  var timeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, 10000); });
-  return Promise.race([fetchP, timeout]);
+}
+
+/* Source 4: Frankfurter — ECB daily, very reliable */
+function fetchViaFrankfurter() {
+  return xhrGet('https://api.frankfurter.app/latest?from=EUR&to=USD,ZAR', 7000).then(function(d) {
+    if (!d || !d.rates || !d.rates.USD) throw new Error('Frankfurter: no rates');
+    var eurusd = d.rates.USD;
+    var eurzar = d.rates.ZAR;
+    return {
+      eurusd: parseFloat(eurusd),
+      usdzar: eurzar ? parseFloat((eurzar / eurusd).toFixed(4)) : null,
+      source: 'Frankfurter / ECB (Daily)',
+      indicative: true
+    };
+  });
 }
 
 /* No fallback APIs — Twelve Data only */
@@ -3263,6 +3339,9 @@ async function loadHistoryFromSource() {
     }
   }
   // Try Supabase
+  // Always use hardcoded creds if config not explicitly set
+  if (!cfg.url) cfg.url = 'https://yeqhplhlnfmgakcdayfk.supabase.co';
+  if (!cfg.key) cfg.key = 'sb_publishable_JXQkSHzlHv_Bm0IbNoMQ-Q_egZ4-N0j';
   if (cfg.url && cfg.key && !cfg.skip) {
     SUPABASE_URL = cfg.url;
     SUPABASE_KEY = cfg.key;
@@ -3296,14 +3375,17 @@ document.getElementById('amount').addEventListener('input',updateAmtWords);
 setPair('EURUSD');
 fetchLiveRates(); // Start live rate fetch
 
-// Check if first time (no config set)
+// Auto-connect with hardcoded credentials — skip config modal
+// (Config modal still accessible via ⚙ button for overrides)
 var _cfg = getConfig();
-if (!_cfg.url && !_cfg.skip) {
-  // First time — show config modal
-  document.getElementById('configModal').style.display = 'flex';
-} else {
-  loadHistoryFromSource();
+// Inject hardcoded creds into config if not already set
+if (!_cfg.url) {
+  _cfg.url = SUPABASE_URL;
+  _cfg.key = SUPABASE_KEY;
+  _cfg.rateApiKey = 'cc7738b264674098a332fbf66ef8adad';
+  localStorage.setItem(CFG_KEY, JSON.stringify(_cfg));
 }
+loadHistoryFromSource();
 </script>
 </body>
 </html>
