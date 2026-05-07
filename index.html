@@ -584,10 +584,10 @@ tbody tr:hover{background:var(--surface2);}
   <div class="ewrap">
     <div class="etb">
       <div class="etbt">&#128231; Deal Confirmation Email &mdash; Ready to Send</div>
-      <button class="cpbtn" id="copyBtn" onclick="copyEmail()">Copy to Clipboard</button>
+      <button class="cpbtn" id="copyBtn" onclick="copyEmail()">&#128203; Copy HTML Email</button>
     </div>
     <div class="esub"><b>Subject: </b><span id="emailSubject"></span></div>
-    <div class="ebody" id="emailBody"></div>
+    <div class="ebody" id="emailBody" style="padding:0;background:#f1f5f9;font-family:Arial,sans-serif;font-size:14px;line-height:1.6"></div>
   </div>
   <button class="ndbtn" onclick="resetDeal()">&#8635; &nbsp;Start New Deal</button>
 </div>
@@ -872,7 +872,7 @@ tbody tr:hover{background:var(--surface2);}
       <div style="padding:10px 18px;background:var(--accent-bg);border-bottom:1px solid var(--accent-bd);font-size:12.5px;color:var(--text2)">
         <b style="color:var(--accent)">Subject: </b><span id="prevEmailSubject"></span>
       </div>
-      <div id="prevEmailBody" style="padding:18px 22px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.85;color:var(--text);white-space:pre-wrap;background:#fff;max-height:55vh;overflow-y:auto"></div>
+      <div id="prevEmailBody" style="background:#f1f5f9;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;max-height:60vh;overflow-y:auto"></div>
     </div>
     <div class="em-footer">
       <button class="em-save" onclick="copyPreviewEmail()" id="prevCopyBtn">&#8690; Copy to Clipboard</button>
@@ -1783,6 +1783,143 @@ function intToWords(n) {
 
 function fmtN(n){return Number(n).toLocaleString('en-US');}
 
+/* ═══ EMAIL HTML BUILDER ═══ */
+function buildEmailHtml(p) {
+  // p = { typeLabel, pairLabel, ccy1, ccy2, amtCcy1, amtCcy2,
+  //       bankRate, spotRate, refLbl, margDiff, pipsVal, pipCls,
+  //       dealNo, fmtDate, givenBy, bankName, amtInWords }
+
+  var isSell = p.typeLabel.toLowerCase().indexOf('sell') >= 0;
+  var typeBg  = isSell ? '#dc2626' : '#059669';
+  var typeIcon = isSell ? '\u25BC' : '\u25B2';
+
+  // Pip verdict colours
+  var verdictMap = {
+    stellar:{ bg:'#ecfaf3', bd:'#a3d9be', txt:'#0d7a4e', icon:'\u2B50', label:'Favourable' },
+    ok:     { bg:'#eff4ff', bd:'#bfdbfe', txt:'#1d4ed8', icon:'\u2705', label:'Satisfactory' },
+    caution:{ bg:'#fff4ed', bd:'#f9c9a0', txt:'#c45000', icon:'\u26A0\uFE0F', label:'Concerning' },
+    warn:   { bg:'#fffbeb', bd:'#f0d090', txt:'#92600a', icon:'\u26D4', label:'High Margin' },
+    bad:    { bg:'#fff0f3', bd:'#f4a8b8', txt:'#b91c3c', icon:'\u274C', label:'Red Flag' }
+  };
+  var v = verdictMap[p.pipCls] || verdictMap.ok;
+
+  function row(label, value, bold) {
+    return '<tr>'
+      +'<td style="padding:9px 18px;font-size:12px;color:#64748b;font-weight:600;background:#f8fafc;'
+      +'border-bottom:1px solid #e2e8f0;width:40%;text-transform:uppercase;letter-spacing:.5px">'+label+'</td>'
+      +'<td style="padding:9px 18px;font-size:13px;color:#1c2b3a;background:#ffffff;'
+      +'border-bottom:1px solid #e2e8f0;font-family:Consolas,monospace;'+(bold?'font-weight:700;font-size:14px;':'')+'">'+value+'</td>'
+      +'</tr>';
+  }
+
+  var emailHtml = [
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background:#f1f5f9;">',
+
+    /* ── HEADER ── */
+    '<div style="background:#1c2b3a;padding:20px 28px;border-radius:8px 8px 0 0;">',
+      '<table style="width:100%;border-collapse:collapse"><tr>',
+        '<td>',
+          '<div style="color:#60a5fa;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:3px">GRF Group</div>',
+          '<div style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-.3px">Treasury &amp; Payments Operations</div>',
+          '<div style="color:#94a3b8;font-size:11px;margin-top:3px">Forex Deal Confirmation &mdash; '+p.fmtDate+'</div>',
+        '</td>',
+        '<td style="text-align:right;vertical-align:top">',
+          '<div style="display:inline-block;background:#2563eb;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase">FX DEAL</div>',
+        '</td>',
+      '</tr></table>',
+    '</div>',
+
+    /* ── DEAL TYPE BANNER ── */
+    '<div style="background:'+typeBg+';padding:10px 28px;display:flex;align-items:center;gap:10px">',
+      '<span style="color:#fff;font-size:18px;font-weight:700">'+typeIcon+' '+p.typeLabel+'</span>',
+      '<span style="color:rgba(255,255,255,.7);font-size:13px;padding-left:8px;border-left:1px solid rgba(255,255,255,.3)">'+p.pairLabel+'</span>',
+      '<span style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600"># '+p.dealNo+'</span>',
+    '</div>',
+
+    /* ── AMOUNT HERO CARDS ── */
+    '<div style="background:#e2e8f0;padding:14px 28px;">',
+      '<table style="width:100%;border-collapse:collapse;border-spacing:10px"><tr>',
+        '<td style="width:50%;padding-right:6px">',
+          '<div style="background:#ffffff;border-radius:8px;padding:14px 18px;border:1px solid #e2e8f0">',
+            '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;margin-bottom:5px">'+p.ccy1+' Amount</div>',
+            '<div style="font-size:22px;font-weight:700;color:#1c2b3a;font-family:Consolas,monospace">'+p.amtCcy1+'</div>',
+            '<div style="font-size:11px;color:#94a3b8;margin-top:3px">'+p.ccy1+' &mdash; You '+( isSell?'Sell':'Pay' )+'</div>',
+          '</div>',
+        '</td>',
+        '<td style="text-align:center;width:30px;font-size:20px;color:#64748b">&rarr;</td>',
+        '<td style="width:50%;padding-left:6px">',
+          '<div style="background:#1c2b3a;border-radius:8px;padding:14px 18px">',
+            '<div style="font-size:10px;color:#60a5fa;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;margin-bottom:5px">'+p.ccy2+' Amount</div>',
+            '<div style="font-size:22px;font-weight:700;color:#ffffff;font-family:Consolas,monospace">'+p.amtCcy2+'</div>',
+            '<div style="font-size:11px;color:#94a3b8;margin-top:3px">'+p.ccy2+' &mdash; You '+( isSell?'Receive':'Get' )+'</div>',
+          '</div>',
+        '</td>',
+      '</tr></table>',
+    '</div>',
+
+    /* ── DEAL DETAILS TABLE ── */
+    '<div style="padding:0 28px 14px;background:#e2e8f0">',
+      '<table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0">',
+        row('Deal Rate',      p.bankRate, true),
+        row('Spot Rate ('+p.refLbl+')', p.spotRate, false),
+        row('Marginal Diff',  p.margDiff, false),
+        row('Pip Margin',     p.pipsVal+' pips', false),
+        row('Value Date',     p.fmtDate, false),
+        row('Bank',           p.bankName, false),
+        row('Given By',       p.givenBy, false),
+      '</table>',
+    '</div>',
+
+    /* ── PIP VERDICT BADGE ── */
+    '<div style="padding:0 28px 14px;background:#e2e8f0">',
+      '<div style="background:'+v.bg+';border:1.5px solid '+v.bd+';border-radius:8px;padding:12px 18px;display:flex;align-items:center;gap:12px">',
+        '<span style="font-size:22px">'+v.icon+'</span>',
+        '<div>',
+          '<div style="font-size:13px;font-weight:700;color:'+v.txt+'">'+v.label+' &mdash; '+p.pipsVal+' pips</div>',
+          '<div style="font-size:12px;color:'+v.txt+';opacity:.8">GRF Treasury Policy Assessment</div>',
+        '</div>',
+        '<div style="margin-left:auto;text-align:right">',
+          '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px">Deal No.</div>',
+          '<div style="font-size:15px;font-weight:700;color:#1c2b3a;font-family:Consolas,monospace">'+p.dealNo+'</div>',
+        '</div>',
+      '</div>',
+    '</div>',
+
+    /* ── AMOUNT IN WORDS ── */
+    '<div style="padding:0 28px 14px;background:#e2e8f0">',
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 18px">',
+        '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px">Amount in Words</div>',
+        '<div style="font-size:13px;color:#1c2b3a;font-style:italic;line-height:1.5">'+p.amtInWords+'</div>',
+      '</div>',
+    '</div>',
+
+    /* ── NOTICE ── */
+    '<div style="padding:0 28px 14px;background:#e2e8f0">',
+      '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 16px;text-align:center">',
+        '<span style="font-size:13px;font-weight:700;color:#92600a">\u23F0 Use This Deal After 20 Minutes</span>',
+      '</div>',
+    '</div>',
+
+    /* ── FOOTER ── */
+    '<div style="background:#1c2b3a;padding:14px 28px;border-radius:0 0 8px 8px">',
+      '<table style="width:100%;border-collapse:collapse"><tr>',
+        '<td>',
+          '<div style="color:rgba(255,255,255,.5);font-size:11px">GRF Treasury FX System &mdash; Confidential</div>',
+          '<div style="color:rgba(255,255,255,.3);font-size:10px;margin-top:2px">Generated '+p.fmtDate+' by GRF Treasury &amp; Payments Ops</div>',
+        '</td>',
+        '<td style="text-align:right">',
+          '<div style="color:#fff;font-size:13px;font-weight:600">Regards,</div>',
+          '<div style="color:#60a5fa;font-size:12px;font-weight:700">ES</div>',
+        '</td>',
+      '</tr></table>',
+    '</div>',
+
+    '</div>'  /* outer wrapper */
+  ].join('');
+
+  return emailHtml;
+}
+
 /* ═══ CONFIRM DEAL ═══ */
 function confirmDeal() {
   // Guard: must have a market rate in tracker
@@ -1797,7 +1934,11 @@ function confirmDeal() {
   var dealNo    = document.getElementById('dealNo').value    || '—';
   var valueDate = document.getElementById('valueDate').value;
   var givenBy   = document.getElementById('givenBy').value   || '—';
-  var spot      = liveRate;   // guaranteed non-null by guard above
+  var dealBankEl = document.getElementById('dealBank');
+  var dealBank   = dealBankEl ? (dealBankEl.value || '') : '';
+  var bankObj    = dealBank ? getBankById(dealBank) : null;
+  var bankName   = bankObj ? bankObj.name : (dealBank || '—');
+  var spot       = liveRate;   // guaranteed non-null by guard above
   var cfg       = PAIR_CONFIG[currentPair];
   var pipMult   = currentPair === 'EURUSD' ? 10000 : 100;
 
@@ -1840,27 +1981,33 @@ function confirmDeal() {
   var typeLabel = cfg.dealLabels[dealType] || dealType;
   var amtInWords = numberToWords(wordsAmt, wordsCcy);
   var subject = 'Forex Deal Confirmation – '+typeLabel+' – '+fmtDate+' – Deal No. '+dealNo;
-  var SEP = '─'.repeat(44);
-  var ln  = '\n';
-  var body = 'Dear Teams,'+ln+ln+'Please find below the Forex Deal details for your reference:'+ln+ln
-    +SEP+ln
-    +'  DEAL TYPE      :  '+typeLabel+ln
-    +'  PAIR           :  '+cfg.label+ln
-    +'  '+cfg.ccy1+' AMOUNT     :  '+fmtN(amtCcy1.toFixed(0))+ln
-    +'  '+cfg.ccy2+' AMOUNT     :  '+fmtN(amtCcy2.toFixed(2))+ln
-    +'  DEAL RATE      :  '+bankRate.toFixed(cfg.decimals)+ln
-    +'  SPOT RATE ('+refLblCD+'):  '+(refRateCD?refRateCD.toFixed(cfg.decimals):'N/A')+ln
-    +'  MARGINAL DIFF  :  '+margDiff+ln
-    +'  DIFF IN PIPs   :  '+pipsVal+' pips'+ln
-    +'  DEAL No.       :  '+dealNo+ln
-    +'  VALUE DATE     :  '+fmtDate+ln
-    +'  GIVEN BY       :  '+givenBy+ln
-    +'  BANK           :  '+(bankName||'\u2014')+ln
-    +SEP+ln+ln
-    +'  AMOUNT IN WORDS: '+amtInWords+ln+ln
-    +'** Use The Deal After 20 Minutes **'+ln+ln+'Regards,'+ln+'ES'
+  var emailParams = {
+    typeLabel:  typeLabel,
+    pairLabel:  cfg.label,
+    ccy1:       cfg.ccy1,
+    ccy2:       cfg.ccy2,
+    amtCcy1:    fmtN(amtCcy1.toFixed(0)),
+    amtCcy2:    fmtN(amtCcy2.toFixed(2)),
+    bankRate:   bankRate.toFixed(cfg.decimals),
+    spotRate:   (refRateCD?refRateCD.toFixed(cfg.decimals):'N/A'),
+    refLbl:     refLblCD,
+    margDiff:   margDiff,
+    pipsVal:    pipsVal,
+    pipCls:     (parseFloat(pipsVal)<5?'stellar':parseFloat(pipsVal)<=7?'ok':parseFloat(pipsVal)<=8?'caution':parseFloat(pipsVal)<=9?'warn':'bad'),
+    dealNo:     dealNo,
+    fmtDate:    fmtDate,
+    givenBy:    givenBy,
+    bankName:   bankName||'—',
+    amtInWords: amtInWords
+  };
+  // Adjust pipCls for ZAR
+  if (currentPair==='USDZAR') {
+    var pv2=parseFloat(pipsVal);
+    emailParams.pipCls = pv2<20?'stellar':pv2<=25?'ok':pv2<=30?'caution':pv2<=35?'warn':'bad';
+  }
+  var body = buildEmailHtml(emailParams);
   document.getElementById('emailSubject').textContent=subject;
-  document.getElementById('emailBody').textContent=body;
+  document.getElementById('emailBody').innerHTML=body;
   document.getElementById('emailPanel').style.display='block';
   document.getElementById('emailPanel').scrollIntoView({behavior:'smooth'});
 
@@ -1899,11 +2046,34 @@ function confirmDeal() {
 }
 
 function copyEmail() {
-  var s=document.getElementById('emailSubject').textContent; var b=document.getElementById('emailBody').textContent;
-  navigator.clipboard.writeText('Subject: '+s+'\n\n'+b).then(function(){
-    var btn=document.getElementById('copyBtn'); btn.textContent='\u2714 Copied!'; btn.classList.add('copied');
-    setTimeout(function(){btn.textContent='Copy to Clipboard';btn.classList.remove('copied');},2500);
-  });
+  var s = document.getElementById('emailSubject').textContent;
+  var htmlBody = document.getElementById('emailBody').innerHTML;
+
+  // Try to copy as rich HTML (pastes nicely into Outlook)
+  try {
+    var blob = new Blob([htmlBody], {type: 'text/html'});
+    var item = new ClipboardItem({'text/html': blob});
+    navigator.clipboard.write([item]).then(function(){
+      var btn=document.getElementById('copyBtn');
+      btn.textContent='✔ HTML Copied — Paste into Outlook!'; btn.classList.add('copied');
+      setTimeout(function(){btn.textContent='Copy to Clipboard';btn.classList.remove('copied');},3000);
+    });
+  } catch(e) {
+    // Fallback: copy plain text
+    var plainText = buildPlainTextEmail(document.getElementById('emailBody'));
+    navigator.clipboard.writeText('Subject: '+s+'\n\n'+plainText).then(function(){
+      var btn=document.getElementById('copyBtn');
+      btn.textContent='✔ Plain Text Copied'; btn.classList.add('copied');
+      setTimeout(function(){btn.textContent='Copy to Clipboard';btn.classList.remove('copied');},2500);
+    });
+  }
+}
+
+function buildPlainTextEmail(el) {
+  // Extract readable text from HTML email for plain-text fallback
+  var tmp = document.createElement('div');
+  tmp.innerHTML = el.innerHTML;
+  return tmp.innerText || tmp.textContent || '';
 }
 
 function resetDeal() {
@@ -2995,31 +3165,41 @@ function resetBanksToDefault() {
 function openEmailPreview(id) {
   var d = dealHistory.find(function(x){ return x.id === id; });
   if (!d) return;
-  var SEP = '─'.repeat(44);
   var typeLabel = d.typeLabel || d.type;
   var isSellEP = (d.type==='SELL_EUR'||d.type==='SELL_USD'||d.type==='SELL_ZAR');
-  var refLblEP = isSellEP ? 'Bid' : 'Ask';
+  var pair = d.pair || 'EURUSD';
+  var cfg2 = PAIR_CONFIG[pair] || PAIR_CONFIG.EURUSD;
+  var pv = parseFloat(d.pips)||0;
+  var pipCls2;
+  if (pair==='USDZAR') {
+    pipCls2 = pv<20?'stellar':pv<=25?'ok':pv<=30?'caution':pv<=35?'warn':'bad';
+  } else {
+    pipCls2 = pv<5?'stellar':pv<=7?'ok':pv<=8?'caution':pv<=9?'warn':'bad';
+  }
   var subject = 'Forex Deal Confirmation – '+typeLabel+' – '+(d.valueDate||'—')+' – Deal No. '+(d.dealNo||'—');
-  var ln = '\n';
-  var body = 'Dear Teams,'+ln+ln+'Please find below the Forex Deal details for your reference:'+ln+ln
-    +SEP+ln
-    +'  DEAL TYPE      :  '+typeLabel+ln
-    +'  PAIR           :  '+(d.pair==='EURUSD'?'EUR/USD':'USD/ZAR')+ln
-    +'  '+(d.ccy1||'EUR')+' AMOUNT     :  '+Number(d.amtCcy1||0).toLocaleString('en-US')+ln
-    +'  '+(d.ccy2||'USD')+' AMOUNT     :  '+Number(d.amtCcy2||0).toLocaleString('en-US')+ln
-    +'  DEAL RATE      :  '+(d.bankRate||'—')+ln
-    +'  SPOT RATE ('+refLblEP+'):  '+(d.spotRate||'—')+ln
-    +'  MARGINAL DIFF  :  '+(d.margDiff||'—')+ln
-    +'  DIFF IN PIPs   :  '+(d.pips||'—')+' pips'+ln
-    +'  DEAL No.       :  '+(d.dealNo||'—')+ln
-    +'  VALUE DATE     :  '+(d.valueDate||'—')+ln
-    +'  GIVEN BY       :  '+(d.givenBy||'—')+ln
-    +SEP+ln+ln
-    +'  AMOUNT IN WORDS: '+(d.amtWords||'—')+ln+ln
-    +'** Use The Deal After 20 Minutes **'+ln+ln+'Regards,'+ln+'ES';
+  var params = {
+    typeLabel:  typeLabel,
+    pairLabel:  cfg2.label,
+    ccy1:       d.ccy1||cfg2.ccy1,
+    ccy2:       d.ccy2||cfg2.ccy2,
+    amtCcy1:    Number(d.amtCcy1||0).toLocaleString('en-US'),
+    amtCcy2:    Number(d.amtCcy2||0).toLocaleString('en-US'),
+    bankRate:   d.bankRate||'—',
+    spotRate:   d.spotRate||'—',
+    refLbl:     isSellEP?'Bid':'Ask',
+    margDiff:   d.margDiff||'—',
+    pipsVal:    d.pips||'—',
+    pipCls:     pipCls2,
+    dealNo:     d.dealNo||'—',
+    fmtDate:    d.valueDate||'—',
+    givenBy:    d.givenBy||'—',
+    bankName:   d.bankName||d.bank||'—',
+    amtInWords: d.amtWords||'—'
+  };
+  var body = buildEmailHtml(params);
   document.getElementById('prevEmailSubject').textContent = subject;
-  document.getElementById('prevEmailBody').textContent = body;
-  document.getElementById('prevCopyBtn').textContent = '⚐ Copy to Clipboard';
+  document.getElementById('prevEmailBody').innerHTML = body;
+  document.getElementById('prevCopyBtn').textContent = '⚐ Copy HTML Email';
   document.getElementById('prevCopyBtn').style.background = 'var(--accent)';
   document.getElementById('emailPreviewModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
