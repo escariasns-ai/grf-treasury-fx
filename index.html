@@ -2017,107 +2017,177 @@ function buildEmailHtml(p) {
 }
 
 
-/* ═══ PUSH TO OUTLOOK ═══ */
+/* ═══ PUSH TO OUTLOOK — DIRECT OPEN IN OUTLOOK CLASSIC ═══ */
+
+function buildEmlContent(subject, htmlBody) {
+  var boundary = 'GRF_' + Date.now();
+  var fullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+    + '<style>body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;margin:20px;}</style>'
+    + '</head><body>' + htmlBody + '</body></html>';
+
+  // Base64 encode the HTML body
+  var b64 = btoa(unescape(encodeURIComponent(fullHtml)));
+  var b64Lines = [];
+  for (var i = 0; i < b64.length; i += 76) b64Lines.push(b64.substring(i, i+76));
+
+  // Plain text fallback
+  var tmp = document.createElement('div');
+  tmp.innerHTML = htmlBody;
+  var plain = (tmp.innerText || tmp.textContent || 'Please view in HTML.').substring(0, 2000);
+
+  return [
+    'MIME-Version: 1.0',
+    'Date: ' + new Date().toUTCString(),
+    'Subject: ' + subject,
+    'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+    'X-Unsent: 1',
+    '',
+    '--' + boundary,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: quoted-printable',
+    '',
+    plain,
+    '',
+    '--' + boundary,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64Lines.join('\r\n'),
+    '',
+    '--' + boundary + '--',
+    ''
+  ].join('\r\n');
+}
 
 function pushToOutlook(subject, htmlBody) {
-  // Step 1: Copy the formatted HTML to clipboard
-  var copied = copyHtmlRich(htmlBody);
+  // STEP 1 — Copy HTML to clipboard (for paste-into-Outlook fallback)
+  copyHtmlRich(htmlBody);
 
-  // Step 2: Also try Clipboard API as backup
-  if (!copied) {
-    try {
-      var blob = new Blob([htmlBody], {type:'text/html'});
-      navigator.clipboard.write([new ClipboardItem({'text/html': blob})]).catch(function(){});
-    } catch(e) {}
-  }
+  // STEP 2 — Build EML blob
+  var emlContent = buildEmlContent(subject, htmlBody);
+  var blob = new Blob([emlContent], { type: 'message/rfc822' });
+  var url  = URL.createObjectURL(blob);
 
-  // Step 3: Open Outlook compose via mailto: with subject pre-filled
-  //         (mailto: is the only cross-platform way to open Outlook from browser)
-  var mailtoHref = 'mailto:?subject=' + encodeURIComponent(subject);
-  window.location.href = mailtoHref;
+  // STEP 3 — Try to open directly via OS handler (no "download" attr = browser delegates to OS)
+  // Edge on Windows: opens Outlook Classic directly
+  // Chrome on Windows: falls back to download, user double-clicks
+  var a = document.createElement('a');
+  a.href = url;
+  // No a.download — tells browser to open with associated app, not force-download
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
 
-  // Step 4: Show instruction overlay
+  setTimeout(function() {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 3000);
+
+  // STEP 4 — Show instructions overlay
   showOutlookInstructions();
 }
 
 function showOutlookInstructions() {
-  var overlay = document.getElementById('outlookHelpOverlay');
-  if (overlay) { overlay.style.display = 'flex'; return; }
+  // Remove any existing overlay
+  var existing = document.getElementById('outlookHelpOverlay');
+  if (existing) existing.remove();
 
-  overlay = document.createElement('div');
+  var overlay = document.createElement('div');
   overlay.id = 'outlookHelpOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;'
-    +'display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;'
+    + 'display:flex;align-items:center;justify-content:center;padding:20px';
 
-  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;max-width:460px;width:100%;'
-    +'box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;">'
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:12px;max-width:480px;width:100%;'
+      + 'box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;font-family:Arial,sans-serif">'
 
     // Header
-    +'<div style="background:#0078d4;padding:16px 22px;display:flex;align-items:center;gap:10px">'
-      +'<span style="font-size:22px">&#128233;</span>'
-      +'<div style="color:#fff;font-size:16px;font-weight:700">Opening Outlook</div>'
-    +'</div>'
+    + '<div style="background:#0078d4;padding:16px 22px;display:flex;align-items:center;'
+        + 'justify-content:space-between">'
+      + '<div style="display:flex;align-items:center;gap:10px">'
+        + '<span style="font-size:22px">&#128233;</span>'
+        + '<div style="color:#fff;font-size:16px;font-weight:700">Opening in Outlook Classic</div>'
+      + '</div>'
+      + '<button onclick="document.getElementById(\'outlookHelpOverlay\').remove()" '
+        + 'style="background:none;border:none;color:rgba(255,255,255,.7);font-size:22px;'
+        + 'cursor:pointer;line-height:1;padding:0">&times;</button>'
+    + '</div>'
 
-    // Steps
-    +'<div style="padding:22px 24px">'
-      +'<div style="font-size:13px;color:#374151;margin-bottom:16px;line-height:1.6">'
-        +'Outlook is opening with the subject pre-filled. '
-        +'The formatted email is <b style="color:#0078d4">copied to your clipboard</b>.'
-      +'</div>'
+    // Body
+    + '<div style="padding:20px 24px">'
+      + '<p style="font-size:13px;color:#374151;margin:0 0 16px;line-height:1.6">'
+        + 'Outlook is opening with the full formatted email.<br>'
+        + 'The HTML is also copied to your clipboard as backup.'
+      + '</p>'
 
-      +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">'
+      // Step boxes
+      + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">'
 
-        +'<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;'
-          +'background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">'
-          +'<div style="background:#0078d4;color:#fff;width:24px;height:24px;border-radius:50%;'
-            +'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">1</div>'
-          +'<div style="font-size:13px;color:#1e40af"><b>Outlook is opening</b> — wait for the compose window</div>'
-        +'</div>'
+        + '<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;'
+            + 'background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">'
+          + '<div style="background:#0078d4;color:#fff;min-width:24px;height:24px;border-radius:50%;'
+              + 'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">1</div>'
+          + '<div style="font-size:13px;color:#1e40af;line-height:1.5">'
+            + '<b>Edge browser:</b> Click <b>Open</b> if prompted &rarr; Outlook opens directly'
+          + '</div>'
+        + '</div>'
 
-        +'<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;'
-          +'background:#f0fdf4;border-radius:8px;border:1px solid #86efac">'
-          +'<div style="background:#16a34a;color:#fff;width:24px;height:24px;border-radius:50%;'
-            +'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">2</div>'
-          +'<div style="font-size:13px;color:#15803d">'
-            +'Click inside the <b>email body</b> area'
-          +'</div>'
-        +'</div>'
+        + '<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;'
+            + 'background:#f0fdf4;border-radius:8px;border:1px solid #86efac">'
+          + '<div style="background:#16a34a;color:#fff;min-width:24px;height:24px;border-radius:50%;'
+              + 'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">2</div>'
+          + '<div style="font-size:13px;color:#15803d;line-height:1.5">'
+            + '<b>Chrome browser:</b> File downloads &rarr; <b>double-click</b> it in the downloads bar &rarr; Outlook opens'
+          + '</div>'
+        + '</div>'
 
-        +'<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;'
-          +'background:#faf5ff;border-radius:8px;border:1px solid #d8b4fe">'
-          +'<div style="background:#7c3aed;color:#fff;width:24px;height:24px;border-radius:50%;'
-            +'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">3</div>'
-          +'<div style="font-size:13px;color:#6d28d9">'
-            +'Press <b style="background:#e8e8e8;padding:2px 8px;border-radius:4px;font-family:monospace">Ctrl + V</b>'
-            +' &nbsp;— formatted email pastes in'
-          +'</div>'
-        +'</div>'
+        + '<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;'
+            + 'background:#faf5ff;border-radius:8px;border:1px solid #d8b4fe">'
+          + '<div style="background:#7c3aed;color:#fff;min-width:24px;height:24px;border-radius:50%;'
+              + 'display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">3</div>'
+          + '<div style="font-size:13px;color:#6d28d9;line-height:1.5">'
+            + '<b>Outlook opened?</b> Click body area &rarr; press '
+            + '<kbd style="background:#e8e8e8;padding:2px 7px;border-radius:4px;font-family:monospace;font-size:12px">Ctrl+V</kbd>'
+            + ' to paste formatted email'
+          + '</div>'
+        + '</div>'
 
-      +'</div>'
+      + '</div>'
 
-      +'<div style="display:flex;gap:8px">'
-        +'<button onclick="document.getElementById(\'outlookHelpOverlay\').style.display=\'none\'" '
-          +'style="flex:1;padding:10px;background:#0078d4;color:#fff;border:none;border-radius:6px;'
-          +'font-size:14px;font-weight:600;cursor:pointer;font-family:Arial">Got it!</button>'
-        +'<button onclick="reCopyEmail(this)" '
-          +'style="padding:10px 16px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;'
-          +'font-size:13px;font-weight:600;cursor:pointer;font-family:Arial">&#128203; Re-copy</button>'
-      +'</div>'
-    +'</div>'
-  +'</div>';
+      // Buttons
+      + '<div style="display:flex;gap:8px">'
+        + '<button onclick="document.getElementById(\'outlookHelpOverlay\').remove()" '
+          + 'style="flex:1;padding:10px;background:#0078d4;color:#fff;border:none;border-radius:6px;'
+          + 'font-size:14px;font-weight:600;cursor:pointer">&#10003; Got it</button>'
+        + '<button id="reCopyOutlookBtn" onclick="reCopyEmail(this)" '
+          + 'style="padding:10px 16px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;'
+          + 'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer">&#128203; Re-copy HTML</button>'
+      + '</div>'
 
+      // Tip
+      + '<p style="font-size:11px;color:#9ca3af;margin:12px 0 0;line-height:1.5">'
+        + '&#128161; Tip: Set Outlook Classic as your default mail app in Windows Settings &rarr; '
+        + 'Apps &rarr; Default apps &rarr; Mail &rarr; Outlook for the best experience.'
+      + '</p>'
+    + '</div>'
+  + '</div>';
+
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); });
   document.body.appendChild(overlay);
-  // Auto-close after 25 seconds
-  setTimeout(function(){ if(overlay.parentNode) overlay.style.display='none'; }, 25000);
+  setTimeout(function(){ if(overlay.parentNode) overlay.remove(); }, 30000);
 }
 
 function reCopyEmail(btn) {
-  var htmlBody = document.getElementById('emailBody')
-    ? document.getElementById('emailBody').innerHTML
-    : (document.getElementById('prevEmailBody') ? document.getElementById('prevEmailBody').innerHTML : '');
-  copyHtmlRich(htmlBody);
-  if (btn) { btn.textContent = '\u2714 Copied!'; setTimeout(function(){ btn.textContent = '\uD83D\uDCCB Re-copy'; }, 2000); }
+  var el = document.getElementById('emailBody') || document.getElementById('prevEmailBody');
+  if (!el) return;
+  copyHtmlRich(el.innerHTML);
+  if (btn) {
+    btn.textContent = '\u2714 Copied!';
+    btn.style.background = '#d1fae5';
+    setTimeout(function(){ btn.textContent = '\uD83D\uDCCB Re-copy HTML'; btn.style.background = '#f3f4f6'; }, 2500);
+  }
 }
+
 
 function openOutlookEmail() {
   var subject  = document.getElementById('emailSubject').textContent;
