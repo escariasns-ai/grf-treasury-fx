@@ -1929,91 +1929,98 @@ function buildEmailHtml(p) {
 
   function tr(label, val) {
     return '<tr>'
-      +'<td style="padding:8px 14px;font-size:13px;font-weight:600;color:#374151;'
-      +'background:#f9fafb;border:1px solid #e5e7eb;width:40%">'+label+'</td>'
-      +'<td style="padding:8px 14px;font-size:13px;color:#111827;'
-      +'border:1px solid #e5e7eb;font-family:Consolas,monospace">'+val+'</td>'
-      +'</tr>';
+      + '<td style="padding:5px 8px;font-size:12px;font-weight:600;color:#4b5563;'
+      + 'background:#f9fafb;border:1px solid #e5e7eb;white-space:nowrap">' + label + '</td>'
+      + '<td style="padding:5px 8px;font-size:12px;color:#111827;border:1px solid #e5e7eb;'
+      + 'font-family:Consolas,monospace">' + val + '</td>'
+      + '</tr>';
   }
 
-  // Amount row with words in smaller colored text below
   function trAmt(label, dispAmt, numAmt, ccy) {
     var words = '';
     try {
-      var n = parseFloat(String(numAmt || dispAmt).replace(/,/g,''));
+      var n = parseFloat(String(numAmt || dispAmt).replace(/,/g, ''));
       if (!isNaN(n) && n > 0) words = numberToWords(n, ccy);
-    } catch(e){}
+    } catch(e) {}
     return '<tr>'
-      +'<td style="padding:8px 14px;font-size:13px;font-weight:600;color:#374151;'
-      +'background:#f9fafb;border:1px solid #e5e7eb;width:40%">'+label+'</td>'
-      +'<td style="padding:8px 14px;border:1px solid #e5e7eb">'
-        +'<span style="font-size:14px;font-weight:700;color:#111827;'
-        +'font-family:Consolas,monospace">'+dispAmt+'</span>'
-        +(words ? '<br><span style="font-size:10.5px;color:#6366f1;font-style:italic;'
-          +'font-family:Arial,sans-serif;font-weight:400">('+words+')</span>' : '')
-      +'</td>'
-      +'</tr>';
+      + '<td style="padding:5px 8px;font-size:12px;font-weight:600;color:#4b5563;'
+      + 'background:#f9fafb;border:1px solid #e5e7eb;white-space:nowrap">' + label + '</td>'
+      + '<td style="padding:5px 8px;border:1px solid #e5e7eb">'
+        + '<span style="font-size:13px;font-weight:700;color:#111827;font-family:Consolas,monospace">'
+          + dispAmt + '</span>'
+        + (words
+          ? '<br><span style="font-size:10px;color:#6366f1;font-style:italic;font-family:Arial,sans-serif">'
+            + '(' + words + ')</span>'
+          : '')
+      + '</td></tr>';
   }
 
-  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;max-width:600px;line-height:1.6">'
+  /* ── Key fix: use TABLE-based layout at fixed 500px ──
+     Outlook Classic ignores CSS width on divs — must use table width attribute */
+  return (
+    '<table width="500" cellpadding="0" cellspacing="0" border="0" '
+    + 'style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;'
+    + 'max-width:500px;width:500px;table-layout:fixed">'
+    + '<tr><td style="padding:0">'
 
-  /* Greeting */
-  +'<p style="font-size:15px;font-weight:700;margin:0 0 6px">Dear Team</p>'
-  +'<p style="color:#6b7280;margin:0 0 18px">Please find below the Forex Deal details for your reference:</p>'
+    /* Greeting */
+    + '<p style="font-size:14px;font-weight:700;margin:0 0 3px">Dear Team</p>'
+    + '<p style="color:#6b7280;margin:0 0 10px;font-size:12px">'
+      + 'Please find below the Forex Deal details for your reference:</p>'
 
-  /* Deal type header row */
-  +'<table style="width:100%;border-collapse:collapse;margin-bottom:14px">'
-  +'<tr style="border-bottom:2px solid '+typeColor+'">'
-  +'<td style="padding:8px 0;font-size:14px;font-weight:700;color:'+typeColor+'">'
-    +typeIcon+' '+p.typeLabel
-  +'</td>'
-  +'<td style="text-align:right;font-size:13px;color:#374151;font-weight:600">'
-    +'Deal No. <span style="font-family:Consolas;color:#111827">'+p.dealNo+'</span>'
-  +'</td>'
-  +'</tr></table>'
+    /* Deal type strip */
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+      + 'style="border-bottom:2px solid ' + typeColor + ';margin-bottom:8px"><tr>'
+      + '<td style="padding:4px 0;font-size:13px;font-weight:700;color:' + typeColor + '">'
+        + typeIcon + ' ' + p.typeLabel + '</td>'
+      + '<td style="text-align:right;font-size:12px;color:#374151;font-weight:600">'
+        + 'Deal No.&nbsp;<span style="font-family:Consolas;color:#111827;font-size:13px">'
+        + p.dealNo + '</span></td>'
+    + '</tr></table>'
 
-  /* Deal Details label */
-  +'<p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.8px;margin:0 0 6px">Deal Details</p>'
+    /* Section label */
+    + '<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;'
+      + 'letter-spacing:.8px;margin:0 0 4px">Deal Details</p>'
 
-  /* Details table */
-  +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'
-  +tr('Deal Rate',   p.bankRate)
-  +trAmt(p.ccy1+' Amount', p.amtCcy1, p.amtCcy1Num, p.ccy1)
-  +trAmt(p.ccy2+' Amount', p.amtCcy2, p.amtCcy2Num, p.ccy2)
-  +tr('Value Date',  p.fmtDate)
-  +tr('Bank',        p.bankName)
-  +tr('Given By',    p.givenBy)
-  +'</table>'
+    /* Details table — fixed layout, no stretching */
+    + '<table width="100%" cellpadding="0" cellspacing="0" '
+      + 'style="border-collapse:collapse;margin-bottom:8px;table-layout:fixed">'
+    + tr('Deal Rate',            p.bankRate)
+    + trAmt(p.ccy1 + ' Amount', p.amtCcy1, p.amtCcy1Num, p.ccy1)
+    + trAmt(p.ccy2 + ' Amount', p.amtCcy2, p.amtCcy2Num, p.ccy2)
+    + tr('Value Date',           p.fmtDate)
+    + tr('Bank',                 p.bankName)
+    + tr('Given By',             p.givenBy)
+    + '</table>'
 
-  /* Pip verdict */
-  +'<table style="width:100%;border-collapse:collapse;margin-bottom:14px">'
-  +'<tr><td style="padding:10px 14px;background:'+v.bg+';border:1px solid '+v.bd
-    +';border-radius:4px;font-size:13px;font-weight:700;color:'+v.txt+'">'
-    +v.icon+' &nbsp;<b>'+v.label+'</b>'
-    +'<span style="font-weight:400;font-size:12px;color:'+v.txt+';margin-left:8px">'
-    +'( As per GRF Treasury Policy Assessment )</span>'
-  +'</td></tr></table>'
+    /* Verdict */
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:6px"><tr>'
+    + '<td style="padding:5px 8px;background:' + v.bg + ';border:1px solid ' + v.bd + ';'
+      + 'border-radius:3px;font-size:12px;color:' + v.txt + '">'
+      + v.icon + '&nbsp;<b>' + v.label + '</b>'
+      + '<span style="font-weight:400;font-size:11px;margin-left:6px">'
+        + '( As per GRF Treasury Policy Assessment )</span>'
+    + '</td></tr></table>'
 
-  /* 20 min notice */
-  +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'
-  +'<tr><td style="padding:9px 14px;background:#fffbeb;border:1px solid #fde68a;'
-    +'border-radius:4px;text-align:center;font-size:13px;font-weight:700;color:#92400e">'
-    +'&#9200; Use This Deal After 20 Minutes'
-  +'</td></tr></table>'
+    /* 20-min notice */
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px"><tr>'
+    + '<td style="padding:5px 8px;background:#fffbeb;border:1px solid #fde68a;'
+      + 'border-radius:3px;text-align:center;font-size:12px;font-weight:700;color:#92400e">'
+      + '&#9200;&nbsp;Use This Deal After 20 Minutes'
+    + '</td></tr></table>'
 
-  /* Footer */
-  +'<table style="width:100%;border-collapse:collapse;border-top:1px solid #e5e7eb;padding-top:10px">'
-  +'<tr>'
-  +'<td style="padding-top:10px;font-size:12px;color:#9ca3af">'
-    +'GRF Treasury FX System<br>Generated '+p.fmtDate
-  +'</td>'
-  +'<td style="text-align:right;padding-top:10px">'
-    +'<span style="font-size:13px;font-weight:600;color:#374151">Regards,<br>'
-    +'<span style="color:#1d4ed8">Eldhose Scaria</span></span>'
-  +'</td>'
-  +'</tr></table>'
+    /* Footer */
+    + '<table width="100%" cellpadding="0" cellspacing="0" '
+      + 'style="border-top:1px solid #e5e7eb"><tr>'
+    + '<td style="padding-top:6px;font-size:11px;color:#9ca3af">'
+      + 'GRF Treasury FX System<br>Generated ' + p.fmtDate + '</td>'
+    + '<td style="text-align:right;padding-top:6px">'
+      + '<span style="font-size:12px;font-weight:600;color:#374151">Regards,<br>'
+        + '<span style="color:#1d4ed8;font-weight:700">Eldhose Scaria</span></span>'
+    + '</td></tr></table>'
 
-  +'</div>';
+    + '</td></tr></table>'
+  );
 }
 
 
