@@ -440,6 +440,12 @@ tbody tr:hover{background:var(--surface2);}
   <button class="pair-tab active" id="tabEURUSD" onclick="setPair('EURUSD')">EUR / USD</button>
   <button class="pair-tab"        id="tabUSDZAR" onclick="setPair('USDZAR')">USD / ZAR</button>
 </div>
+<!-- RATE BANNER -->
+<div class="rate-banner">
+  <div class="rbl" id="rateLabel">EUR/USD Rate (FXStreet)<span id="rateBannerHint">If Selling: paste Bid rate &mdash; If Buying: paste Ask rate &mdash; then click Add Rate</span></div>
+  <div class="rate-iw"><input type="number" id="manualRateInput" step="0.00001" placeholder="e.g. 1.08520"></div>
+  <button class="set-btn" onclick="applyManualRate()">Add Rate &rarr;</button>
+</div>
 <!-- DEAL SETUP + PIP ANALYSIS -->
 <div class="grid2">
   <div class="card">
@@ -563,13 +569,6 @@ tbody tr:hover{background:var(--surface2);}
   </div>
 </div>
 <div class="lrc-copied-toast" id="lrcToast"></div>
-
-<!-- RATE BANNER -->
-<div class="rate-banner">
-  <div class="rbl" id="rateLabel">EUR/USD Rate (FXStreet)<span id="rateBannerHint">If Selling: paste Bid rate &mdash; If Buying: paste Ask rate &mdash; then click Add Rate</span></div>
-  <div class="rate-iw"><input type="number" id="manualRateInput" step="0.00001" placeholder="e.g. 1.08520"></div>
-  <button class="set-btn" onclick="applyManualRate()">Add Rate &rarr;</button>
-</div>
 
 <!-- RATE TRACKER -->
 <div class="tracker-card">
