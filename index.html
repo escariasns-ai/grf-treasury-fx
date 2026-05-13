@@ -435,6 +435,68 @@ tbody tr:hover{background:var(--surface2);}
      PAGE 1: DEAL ENTRY
 ══════════════════════════════════════ -->
 <div class="page active" id="pageDeal">
+<!-- DEAL SETUP + PIP ANALYSIS -->
+<div class="grid2">
+  <div class="card">
+    <div class="card-lbl">Deal Setup</div>
+    <div class="deal-toggle" id="dealToggle">
+      <button class="dt se" id="btnSE" onclick="setDealType('SELL_EUR')">&#9660; Sell EUR<span class="dt-sub">Give EUR &middot; Get USD</span></button>
+      <button class="dt be" id="btnBE" onclick="setDealType('BUY_EUR')">&#9650; Buy EUR<span class="dt-sub">Give USD &middot; Get EUR</span></button>
+      <button class="dt su" id="btnSU" onclick="setDealType('SELL_USD')">&#9660; Sell USD<span class="dt-sub">Give USD &middot; Get EUR</span></button>
+      <button class="dt bu" id="btnBU" onclick="setDealType('BUY_USD')">&#9650; Buy USD<span class="dt-sub">Give EUR &middot; Get USD</span></button>
+    </div>
+    <div class="grid2i">
+      <div class="fg"><label class="flbl">Bank Deal Rate</label><input class="fi" type="number" id="bankRate" step="0.00001" placeholder="1.08250" oninput="calculate()"></div>
+      <div class="fg"><label class="flbl">Amount <span class="ccy" id="amtCcy">(EUR)</span></label><input class="fi" type="number" id="amount" value="600000" oninput="calculate()"><div class="amt-words" id="amtWords"></div></div>
+      <div class="fg"><label class="flbl">Deal No.</label><input class="fi" type="text" id="dealNo" placeholder="13856"></div>
+      <div class="fg"><label class="flbl">Value Date</label><input class="fi" type="date" id="valueDate"></div>
+    </div>
+    <div class="grid2i" style="gap:10px">
+      <div class="fg"><label class="flbl">Bank</label>
+        <select class="fi fi-sel" id="dealBank" onchange="calculate()">
+          <option value="">-- Select Bank --</option>
+        </select>
+      </div>
+      <div class="fg"><label class="flbl">Given By</label>
+        <select class="fi fi-sel" id="givenBy" onchange="onGivenByChange('givenBy','dealBank')">
+          <option value="">-- Select --</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-lbl">Pip Analysis &mdash; Bank vs Market</div>
+    <div class="pip-meter">
+      <div class="pip-nb" id="pipBlock"><div class="pip-sl">Margin in Pips</div><div class="pip-big" id="pipVal">&mdash;</div></div>
+      <div class="vb" id="vBlock"><div class="vi" id="vIcon">&#x23F3;</div><div class="vt" id="vTitle">Awaiting input</div><div class="vd" id="vDesc">Enter bank rate and amount to see analysis.</div></div>
+    </div>
+    <div class="pip-scale" id="pipScaleWrap" style="display:none">
+      <div class="pip-scale-title">Bank Margin Position on Scale</div>
+      <div class="pip-scale-track"><div class="pip-scale-marker" id="pipMarker"></div></div>
+      <div class="pip-scale-labels" id="pipScaleLabels"><span>0</span><span>2</span><span>4</span><span>5</span><span>7</span><span>8</span><span>10+</span></div>
+      <div class="pip-scale-zones" id="pipScaleZones">
+        <div class="sz"><div class="sz-dot" style="background:#16a34a"></div><span style="color:#16a34a" id="szL1">Favourable (&lt;5)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#0d7a4e"></div><span style="color:#0d7a4e" id="szL2">Satisfactory (5&ndash;7)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#c45000"></div><span style="color:#c45000" id="szL3">Concerning (7&ndash;8)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#92600a"></div><span style="color:#92600a" id="szL4">High (8&ndash;9)</span></div>
+        <div class="sz"><div class="sz-dot" style="background:#b91c3c"></div><span style="color:#b91c3c" id="szL5">Red Flag (&gt;9)</span></div>
+      </div>
+    </div>
+    <div id="amtSection" style="display:none">
+      <table class="atbl">
+        <tr><td id="lblGive">You Give</td><td id="valGive">&mdash;</td></tr>
+        <tr><td>Market Spot Rate</td><td id="valSpot">&mdash;</td></tr>
+        <tr><td>Bank Deal Rate</td><td id="valBank">&mdash;</td></tr>
+        <tr class="total"><td id="lblGet">You Receive (Bank)</td><td id="valGet">&mdash;</td></tr>
+        <tr><td>You Would Receive (Market)</td><td id="valMkt">&mdash;</td></tr>
+        <tr id="diffRow"><td id="diffLbl">Difference</td><td id="diffVal">&mdash;</td></tr>
+        <tr><td>Amount in Words</td><td id="valWords" style="font-size:12px;font-style:italic;color:var(--text2)">&mdash;</td></tr>
+      </table>
+    </div>
+    <div id="bankBenchmarkNote" style="display:none;margin-top:10px;padding:10px 14px;border-radius:var(--rs);font-size:12.5px;line-height:1.6;border:1.5px solid var(--border);background:var(--surface2)"></div>
+<button class="cbtn" id="confirmBtn" onclick="confirmDeal()" disabled>Confirm Deal &amp; Generate Email</button>
+  </div>
+</div>
 
 <!-- LIVE RATE CARD -->
 <div class="live-rate-card" id="liveRateCard">
@@ -513,70 +575,6 @@ tbody tr:hover{background:var(--surface2);}
   </div>
   <div class="suggestion" id="trendSuggestion"></div>
 </div>
-
-<!-- DEAL SETUP + PIP ANALYSIS -->
-<div class="grid2">
-  <div class="card">
-    <div class="card-lbl">Deal Setup</div>
-    <div class="deal-toggle" id="dealToggle">
-      <button class="dt se" id="btnSE" onclick="setDealType('SELL_EUR')">&#9660; Sell EUR<span class="dt-sub">Give EUR &middot; Get USD</span></button>
-      <button class="dt be" id="btnBE" onclick="setDealType('BUY_EUR')">&#9650; Buy EUR<span class="dt-sub">Give USD &middot; Get EUR</span></button>
-      <button class="dt su" id="btnSU" onclick="setDealType('SELL_USD')">&#9660; Sell USD<span class="dt-sub">Give USD &middot; Get EUR</span></button>
-      <button class="dt bu" id="btnBU" onclick="setDealType('BUY_USD')">&#9650; Buy USD<span class="dt-sub">Give EUR &middot; Get USD</span></button>
-    </div>
-    <div class="grid2i">
-      <div class="fg"><label class="flbl">Bank Deal Rate</label><input class="fi" type="number" id="bankRate" step="0.00001" placeholder="1.08250" oninput="calculate()"></div>
-      <div class="fg"><label class="flbl">Amount <span class="ccy" id="amtCcy">(EUR)</span></label><input class="fi" type="number" id="amount" value="600000" oninput="calculate()"><div class="amt-words" id="amtWords"></div></div>
-      <div class="fg"><label class="flbl">Deal No.</label><input class="fi" type="text" id="dealNo" placeholder="13856"></div>
-      <div class="fg"><label class="flbl">Value Date</label><input class="fi" type="date" id="valueDate"></div>
-    </div>
-    <div class="grid2i" style="gap:10px">
-      <div class="fg"><label class="flbl">Bank</label>
-        <select class="fi fi-sel" id="dealBank" onchange="calculate()">
-          <option value="">-- Select Bank --</option>
-        </select>
-      </div>
-      <div class="fg"><label class="flbl">Given By</label>
-        <select class="fi fi-sel" id="givenBy" onchange="onGivenByChange('givenBy','dealBank')">
-          <option value="">-- Select --</option>
-        </select>
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-lbl">Pip Analysis &mdash; Bank vs Market</div>
-    <div class="pip-meter">
-      <div class="pip-nb" id="pipBlock"><div class="pip-sl">Margin in Pips</div><div class="pip-big" id="pipVal">&mdash;</div></div>
-      <div class="vb" id="vBlock"><div class="vi" id="vIcon">&#x23F3;</div><div class="vt" id="vTitle">Awaiting input</div><div class="vd" id="vDesc">Enter bank rate and amount to see analysis.</div></div>
-    </div>
-    <div class="pip-scale" id="pipScaleWrap" style="display:none">
-      <div class="pip-scale-title">Bank Margin Position on Scale</div>
-      <div class="pip-scale-track"><div class="pip-scale-marker" id="pipMarker"></div></div>
-      <div class="pip-scale-labels" id="pipScaleLabels"><span>0</span><span>2</span><span>4</span><span>5</span><span>7</span><span>8</span><span>10+</span></div>
-      <div class="pip-scale-zones" id="pipScaleZones">
-        <div class="sz"><div class="sz-dot" style="background:#16a34a"></div><span style="color:#16a34a" id="szL1">Favourable (&lt;5)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#0d7a4e"></div><span style="color:#0d7a4e" id="szL2">Satisfactory (5&ndash;7)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#c45000"></div><span style="color:#c45000" id="szL3">Concerning (7&ndash;8)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#92600a"></div><span style="color:#92600a" id="szL4">High (8&ndash;9)</span></div>
-        <div class="sz"><div class="sz-dot" style="background:#b91c3c"></div><span style="color:#b91c3c" id="szL5">Red Flag (&gt;9)</span></div>
-      </div>
-    </div>
-    <div id="amtSection" style="display:none">
-      <table class="atbl">
-        <tr><td id="lblGive">You Give</td><td id="valGive">&mdash;</td></tr>
-        <tr><td>Market Spot Rate</td><td id="valSpot">&mdash;</td></tr>
-        <tr><td>Bank Deal Rate</td><td id="valBank">&mdash;</td></tr>
-        <tr class="total"><td id="lblGet">You Receive (Bank)</td><td id="valGet">&mdash;</td></tr>
-        <tr><td>You Would Receive (Market)</td><td id="valMkt">&mdash;</td></tr>
-        <tr id="diffRow"><td id="diffLbl">Difference</td><td id="diffVal">&mdash;</td></tr>
-        <tr><td>Amount in Words</td><td id="valWords" style="font-size:12px;font-style:italic;color:var(--text2)">&mdash;</td></tr>
-      </table>
-    </div>
-    <div id="bankBenchmarkNote" style="display:none;margin-top:10px;padding:10px 14px;border-radius:var(--rs);font-size:12.5px;line-height:1.6;border:1.5px solid var(--border);background:var(--surface2)"></div>
-<button class="cbtn" id="confirmBtn" onclick="confirmDeal()" disabled>Confirm Deal &amp; Generate Email</button>
-  </div>
-</div>
-
 <!-- EMAIL PANEL -->
 <div id="emailPanel">
   <div class="ewrap">
