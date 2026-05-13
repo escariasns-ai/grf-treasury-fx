@@ -435,6 +435,11 @@ tbody tr:hover{background:var(--surface2);}
      PAGE 1: DEAL ENTRY
 ══════════════════════════════════════ -->
 <div class="page active" id="pageDeal">
+ <!-- PAIR TABS -->
+<div class="pair-tabs">
+  <button class="pair-tab active" id="tabEURUSD" onclick="setPair('EURUSD')">EUR / USD</button>
+  <button class="pair-tab"        id="tabUSDZAR" onclick="setPair('USDZAR')">USD / ZAR</button>
+</div>
 <!-- DEAL SETUP + PIP ANALYSIS -->
 <div class="grid2">
   <div class="card">
@@ -497,6 +502,25 @@ tbody tr:hover{background:var(--surface2);}
 <button class="cbtn" id="confirmBtn" onclick="confirmDeal()" disabled>Confirm Deal &amp; Generate Email</button>
   </div>
 </div>
+<!-- EMAIL PANEL -->
+<div id="emailPanel">
+  <div class="ewrap">
+    <div class="etb">
+      <div class="etbt">&#128231; Deal Confirmation Email &mdash; Ready to Send</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="cpbtn" onclick="openOutlookEmail()" style="background:#0078d4">
+          &#128233; Open in Outlook
+        </button>
+        <button class="cpbtn" id="copyBtn" onclick="copyEmail()">
+          &#128203; Copy HTML
+        </button>
+      </div>
+    </div>
+    <div class="esub"><b>Subject: </b><span id="emailSubject"></span></div>
+    <div class="ebody" id="emailBody" style="padding:16px;background:#e5e7eb;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;max-height:600px;overflow-y:auto"></div>
+  </div>
+  <button class="ndbtn" onclick="resetDeal()">&#8635; &nbsp;Start New Deal</button>
+</div>
 
 <!-- LIVE RATE CARD -->
 <div class="live-rate-card" id="liveRateCard">
@@ -540,12 +564,6 @@ tbody tr:hover{background:var(--surface2);}
 </div>
 <div class="lrc-copied-toast" id="lrcToast"></div>
 
-<!-- PAIR TABS -->
-<div class="pair-tabs">
-  <button class="pair-tab active" id="tabEURUSD" onclick="setPair('EURUSD')">EUR / USD</button>
-  <button class="pair-tab"        id="tabUSDZAR" onclick="setPair('USDZAR')">USD / ZAR</button>
-</div>
-
 <!-- RATE BANNER -->
 <div class="rate-banner">
   <div class="rbl" id="rateLabel">EUR/USD Rate (FXStreet)<span id="rateBannerHint">If Selling: paste Bid rate &mdash; If Buying: paste Ask rate &mdash; then click Add Rate</span></div>
@@ -574,25 +592,6 @@ tbody tr:hover{background:var(--surface2);}
     <div id="versionLogWrap"><div class="vl-empty">No rates added yet. Paste rates from FXStreet above as you monitor the market.</div></div>
   </div>
   <div class="suggestion" id="trendSuggestion"></div>
-</div>
-<!-- EMAIL PANEL -->
-<div id="emailPanel">
-  <div class="ewrap">
-    <div class="etb">
-      <div class="etbt">&#128231; Deal Confirmation Email &mdash; Ready to Send</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="cpbtn" onclick="openOutlookEmail()" style="background:#0078d4">
-          &#128233; Open in Outlook
-        </button>
-        <button class="cpbtn" id="copyBtn" onclick="copyEmail()">
-          &#128203; Copy HTML
-        </button>
-      </div>
-    </div>
-    <div class="esub"><b>Subject: </b><span id="emailSubject"></span></div>
-    <div class="ebody" id="emailBody" style="padding:16px;background:#e5e7eb;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;max-height:600px;overflow-y:auto"></div>
-  </div>
-  <button class="ndbtn" onclick="resetDeal()">&#8635; &nbsp;Start New Deal</button>
 </div>
 
 <!-- HISTORY -->
