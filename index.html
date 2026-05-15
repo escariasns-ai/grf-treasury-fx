@@ -444,7 +444,7 @@ tbody tr:hover{background:var(--surface2);}
 <div class="rate-banner">
   <div class="rbl" id="rateLabel">EUR/USD Rate (FXStreet)<span id="rateBannerHint">If Selling: paste Bid rate &mdash; If Buying: paste Ask rate &mdash; then click Add Rate</span></div>
   <div class="rate-iw"><input type="number" id="manualRateInput" step="0.00001" placeholder="e.g. 1.08520"></div>
-  <button class="set-btn" onclick="applyManualRate()">Add Rate &rarr;</button>
+  <button class="set-btn" id="addRateBtn" onclick="applyManualRate()">Add Bid Rate &rarr;</button>
 </div>
 <!-- DEAL SETUP + PIP ANALYSIS -->
 <div class="grid2">
@@ -1065,6 +1065,7 @@ tbody tr:hover{background:var(--surface2);}
 
 /* ═══ GLOBALS ═══ */
 var liveRate    = null;
+var liveRateSide = '';
 var currentPair = 'EURUSD';
 var dealType    = 'SELL_EUR';
 var rateLog     = [];
@@ -1489,21 +1490,69 @@ var PAIR_CONFIG = {
 };
 
 function setPair(pair) {
-  currentPair=pair; liveRate=null; rateLog=[];
+  currentPair=pair; liveRate=null; liveRateSide=''; rateLog=[];
   dealType = pair==='EURUSD'?'SELL_EUR':'SELL_USD';
   document.getElementById('tabEURUSD').classList.toggle('active',pair==='EURUSD');
   document.getElementById('tabUSDZAR').classList.toggle('active',pair==='USDZAR');
   var cfg=PAIR_CONFIG[pair];
   document.getElementById('rateLabel').innerHTML=cfg.label+' Rate (FXStreet)<span id="rateBannerHint">If Selling: paste Bid rate &mdash; If Buying: paste Ask rate &mdash; then click Add Rate</span>';
   document.getElementById('trackerTitle').textContent='GRF Treasury FX \u2014 Rate Tracker ('+cfg.label+')';
-  document.getElementById('manualRateInput').placeholder=cfg.placeholder;
+  var manualInput = document.getElementById('manualRateInput');
+  manualInput.placeholder = cfg.placeholder;
+  manualInput.min = cfg.min;
+  manualInput.max = cfg.max;
+  manualInput.step = 1 / Math.pow(10, cfg.decimals);
+  manualInput.value = '';
   ['liveRate','mHigh','mLow','mAvg','mCount'].forEach(function(id){document.getElementById(id).textContent='\u2014';});
   document.getElementById('rateDir').className='rate-dir flat';
   document.getElementById('rateDir').textContent='No rate yet';
   document.getElementById('versionLogWrap').innerHTML='<div class="vl-empty">No rates added yet.</div>';
   populateBankDropdown();
   document.getElementById('trendSuggestion').style.display='none';
-  rebuildToggle(pair); resetCalc();
+  rebuildToggle(pair); updateRateSideCue(); resetCalc();
+}
+
+function isSellDealType(t) {
+  return t === 'SELL_EUR' || t === 'SELL_USD' || t === 'SELL_ZAR';
+}
+
+function getMarketSideForDeal(t) {
+  return isSellDealType(t) ? 'Bid' : 'Ask';
+}
+
+function getLiveCardSideRate(pair, midRate) {
+  var sp = LRC_SPREAD[pair] || 0;
+  return getMarketSideForDeal(dealType) === 'Bid' ? midRate - sp : midRate + sp;
+}
+
+function getPipMultiplier(pair) {
+  return pair === 'USDZAR' ? 100 : 10000;
+}
+
+function updateRateSideCue() {
+  var side = getMarketSideForDeal(dealType);
+  var action = side === 'Bid' ? 'Selling' : 'Buying';
+  var btn = document.getElementById('addRateBtn');
+  var hint = document.getElementById('rateBannerHint');
+  if (btn) btn.innerHTML = 'Add ' + side + ' Rate &rarr;';
+  if (hint) hint.textContent = 'For current deal: ' + action + ' - paste the market ' + side + ' rate, then click Add ' + side + ' Rate';
+}
+
+function hasMatchingMarketSide() {
+  return !liveRateSide || liveRateSide === getMarketSideForDeal(dealType);
+}
+
+function showMarketSideMismatch() {
+  var needed = getMarketSideForDeal(dealType);
+  document.getElementById('pipVal').textContent='\u2014';
+  document.getElementById('pipBlock').className='pip-nb warn';
+  document.getElementById('vBlock').className='vb warn';
+  document.getElementById('vIcon').textContent='!';
+  document.getElementById('vTitle').textContent='Add the matching market ' + needed + ' rate';
+  document.getElementById('vDesc').textContent='The current tracker rate is a ' + liveRateSide + ' rate, but this deal type needs the market ' + needed + ' rate.';
+  document.getElementById('amtSection').style.display='none';
+  document.getElementById('pipScaleWrap').style.display='none';
+  document.getElementById('confirmBtn').disabled=true;
 }
 
 function rebuildToggle(pair) {
@@ -1535,12 +1584,16 @@ function rebuildToggle(pair) {
 function applyManualRate() {
   var cfg=PAIR_CONFIG[currentPair];
   var val=parseFloat(document.getElementById('manualRateInput').value);
-  if (isNaN(val)||val<cfg.min||val>cfg.max) {alert('Please enter a valid '+cfg.label+' rate ('+cfg.placeholder+')');return;}
-  var prev=liveRate; liveRate=val;
+  if (isNaN(val)||val<cfg.min||val>cfg.max) {
+    alert('Please enter a valid '+cfg.label+' rate between '+cfg.min+' and '+cfg.max+' ('+cfg.placeholder+')');
+    return;
+  }
+  var side=getMarketSideForDeal(dealType);
+  var prev=liveRate; liveRate=val; liveRateSide=side;
   var now=new Date(); var tstr=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   var diff=(prev!==null)?(val-prev):null;
   var trend=diff===null?'first':diff>0?'up':diff<0?'down':'flat';
-  rateLog.unshift({rate:val,time:tstr,diff:diff,trend:trend,prev:prev});
+  rateLog.unshift({rate:val,side:side,time:tstr,diff:diff,trend:trend,prev:prev});
   document.getElementById('manualRateInput').value='';
   updateRateUI(val,prev,diff,trend,cfg);
   renderVersionLog(); calculate();
@@ -1576,9 +1629,9 @@ function renderVersionLog() {
     var diffTxt=r.diff===null?'\u2014':(r.diff>=0?'+':'')+r.diff.toFixed(cfg.decimals);
     var trendCls=r.trend==='up'?'trend-up':r.trend==='down'?'trend-dn':'trend-flat';
     var arrow=r.trend==='up'?'\u25b2':r.trend==='down'?'\u25bc':'\u2014';
-    return '<tr style="'+(i===0?'background:var(--accent-bg);':'')+'"><td style="color:var(--text3);font-size:11px">'+r.time+'</td><td class="r" style="font-weight:'+(i===0?'700':'400')+'">'+r.rate.toFixed(cfg.decimals)+'</td><td class="r '+trendCls+'">'+arrow+' '+diffTxt+'</td><td class="r">'+(i===0?'<span style="font-size:11px;color:var(--accent);font-weight:600">LATEST</span>':'<span style="font-size:11px;color:var(--text3)">v'+(rateLog.length-i)+'</span>')+'</td></tr>';
+    return '<tr style="'+(i===0?'background:var(--accent-bg);':'')+'"><td style="color:var(--text3);font-size:11px">'+r.time+'</td><td style="font-size:11px;font-weight:600;color:var(--text3)">'+(r.side||'\u2014')+'</td><td class="r" style="font-weight:'+(i===0?'700':'400')+'">'+r.rate.toFixed(cfg.decimals)+'</td><td class="r '+trendCls+'">'+arrow+' '+diffTxt+'</td><td class="r">'+(i===0?'<span style="font-size:11px;color:var(--accent);font-weight:600">LATEST</span>':'<span style="font-size:11px;color:var(--text3)">v'+(rateLog.length-i)+'</span>')+'</td></tr>';
   }).join('');
-  wrap.innerHTML='<table class="vl-table"><thead><tr><th>Time</th><th class="r">Rate</th><th class="r">Change</th><th class="r">Ver.</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  wrap.innerHTML='<table class="vl-table"><thead><tr><th>Time</th><th>Side</th><th class="r">Rate</th><th class="r">Change</th><th class="r">Ver.</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 function showTrendSuggestion() {
@@ -1604,7 +1657,7 @@ function showTrendSuggestion() {
 }
 
 function clearRates() {
-  rateLog=[];liveRate=null;
+  rateLog=[];liveRate=null;liveRateSide='';
   ['liveRate','mHigh','mLow','mAvg','mCount'].forEach(function(id){
     var el = document.getElementById(id);
     if (el) el.textContent='—';
@@ -1635,6 +1688,7 @@ function setDealType(t) {
     amtCcyTxt = (t==='SELL_USD'||t==='BUY_USD') ? '(USD)' : '(ZAR)';
   }
   document.getElementById('amtCcy').textContent = amtCcyTxt;
+  updateRateSideCue();
   calculate();
   if (rateLog.length>=2) showTrendSuggestion();
 }
@@ -1648,13 +1702,14 @@ function calculate() {
   var pv  = document.getElementById('pipVal');
 
   if (!liveRate || !bankRateRaw || !amountRaw) { resetCalc(); return; }
+  if (!hasMatchingMarketSide()) { showMarketSideMismatch(); return; }
 
   var bankRate = parseFloat(bankRateRaw);
   var inputAmt = parseFloat(amountRaw);
   var spot     = liveRate;
   var cfg      = PAIR_CONFIG[currentPair];
   var spread   = cfg.spread;
-  var pipMult  = currentPair === 'EURUSD' ? 10000 : 100;
+  var pipMult  = getPipMultiplier(currentPair);
 
   /*
    * Amount logic — what the user knows vs what is calculated:
@@ -1699,8 +1754,7 @@ function calculate() {
   /* Pip reference: user pastes the EXACT market rate for their deal side
    * (Bid when selling, Ask when buying) — so liveRate IS already the reference.
    * No artificial spread subtraction needed. */
-  var isSelling = (dealType === 'SELL_EUR' || dealType === 'SELL_USD' || dealType === 'SELL_ZAR');
-  var refLabel  = isSelling ? 'Bid (as entered)' : 'Ask (as entered)';
+  var refLabel  = (liveRateSide || getMarketSideForDeal(dealType)) + ' (as entered)';
   var refRate   = spot;   // the pasted rate IS the Bid or Ask
   var pips      = Math.abs(bankRate - refRate) * pipMult;
   pv.textContent = pips.toFixed(2);
@@ -2212,6 +2266,10 @@ function confirmDeal() {
     alert('No market rate found.\n\nPlease add a rate from FXStreet to the Rate Tracker first\n(paste rate → click Add Rate →), or click the live rate card to fetch one.');
     return;
   }
+  if (!hasMatchingMarketSide()) {
+    alert('The current tracker rate is a '+liveRateSide+' rate, but this deal type needs the market '+getMarketSideForDeal(dealType)+' rate.\n\nPlease add the matching market rate before confirming.');
+    return;
+  }
   var bankRate  = parseFloat(document.getElementById('bankRate').value);
   var inputAmt  = parseFloat(document.getElementById('amount').value);
   if (isNaN(bankRate) || bankRate <= 0) { alert('Please enter a valid Bank Deal Rate.'); return; }
@@ -2225,7 +2283,7 @@ function confirmDeal() {
   var bankName   = bankObj ? bankObj.name : (dealBank || '—');
   var spot       = liveRate;   // guaranteed non-null by guard above
   var cfg       = PAIR_CONFIG[currentPair];
-  var pipMult   = currentPair === 'EURUSD' ? 10000 : 100;
+  var pipMult   = getPipMultiplier(currentPair);
 
   // Mirror calculate() — same entersCcy1 logic
   var entersCcy1;
@@ -2243,9 +2301,9 @@ function confirmDeal() {
     amtCcy1 = inputAmt / bankRate;
   }
 
-  var isSellCD  = (dealType==='SELL_EUR'||dealType==='SELL_USD'||dealType==='SELL_ZAR');
+  var isSellCD  = isSellDealType(dealType);
   var refRateCD = spot;  // user pasted the exact market side (Bid for sell, Ask for buy)
-  var refLblCD  = isSellCD ? 'Bid' : 'Ask';
+  var refLblCD  = liveRateSide || (isSellCD ? 'Bid' : 'Ask');
   var pipsVal   = (Math.abs(bankRate - refRateCD) * pipMult).toFixed(2);
   var margDiff  = Math.abs(bankRate - refRateCD).toFixed(cfg.decimals);
 
@@ -2521,7 +2579,7 @@ function saveEdit() {
   var vd=document.getElementById('em-valueDate').value;
   var fmtDate=vd?new Date(vd+'T00:00:00').toLocaleDateString('en-GB'):d.valueDate;
   // Recalculate pips
-  var pipMult=pair==='EURUSD'?10000:100;
+  var pipMult=getPipMultiplier(pair);
   var pipsVal=(Math.abs(bankRate-spotRate)*pipMult).toFixed(2);
 
   var margDiff=Math.abs(bankRate-spotRate).toFixed(cfg.decimals);
@@ -3359,9 +3417,9 @@ function copyRateToField(pair) {
     setLrcStatus('live', '● Live — ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
 
     // Auto-log this rate into the version tracker (same as clicking Add Rate)
-    var rate = pair === 'EURUSD' ? result.eurusd : result.usdzar;
+    var midRate = pair === 'EURUSD' ? result.eurusd : result.usdzar;
     var cfg2 = PAIR_CONFIG[pair];
-    if (!rate || !cfg2) {
+    if (!midRate || !cfg2) {
       showToast('⚠ ' + pair + ' rate not available');
       return;
     }
@@ -3369,12 +3427,14 @@ function copyRateToField(pair) {
 
     // Make sure we're on the right pair
     if (currentPair !== pair) setPair(pair);
+    var rate = getLiveCardSideRate(pair, midRate);
+    var side = getMarketSideForDeal(dealType);
 
     // Inject into input and call applyManualRate programmatically
     document.getElementById('manualRateInput').value = rate.toFixed(dec);
     applyManualRate();
 
-    showToast('✓ ' + pair.slice(0,3) + '/' + pair.slice(3) + ' ' + rate.toFixed(dec) + ' refreshed and added to tracker');
+    showToast('✓ ' + pair.slice(0,3) + '/' + pair.slice(3) + ' ' + side + ' ' + rate.toFixed(dec) + ' refreshed and added to tracker');
 
     // Reset countdown
     clearTimeout(lrcRefreshTimer);
